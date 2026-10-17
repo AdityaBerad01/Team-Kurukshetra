@@ -4,14 +4,18 @@ import Avatar from './ui/Avatar'
 
 const STUDENT_LINKS = [
   { to: '/student-dashboard',  icon: '🏠', label: 'Dashboard'       },
-  { to: '/my-requests',        icon: '📋', label: 'My Requests'     },
+  { to: '/my-requests',        icon: '📋', label: 'My Sessions'     },
+  { to: '/wallet',             icon: '🪙', label: 'Credit Wallet'   },
+  { to: '/progress',           icon: '📊', label: 'Learning Progress'},
   { to: '/tutors',             icon: '🔍', label: 'Find Tutors'     },
   { to: '/profile',            icon: '👤', label: 'Profile & Settings' },
 ]
 
 const TUTOR_LINKS = [
   { to: '/tutor-dashboard',    icon: '🏠', label: 'Dashboard'       },
+  { to: '/my-requests',        icon: '📋', label: 'Incoming Sessions'},
   { to: '/manage-availability',icon: '📅', label: 'My Availability' },
+  { to: '/wallet',             icon: '🪙', label: 'Credit Wallet'   },
   { to: '/profile',            icon: '👤', label: 'Profile & Settings' },
 ]
 

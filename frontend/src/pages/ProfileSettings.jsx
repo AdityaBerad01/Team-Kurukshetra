@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { SAMPLE_SUBJECTS, ALL_DAYS } from '../data/sampleData'
 import { fetchMyTutorProfile, createTutorProfile, updateTutorProfile } from '../api/tutors'
+import { updateCurrentUser } from '../api/auth'
 import Avatar from '../components/ui/Avatar'
 import Modal from '../components/ui/Modal'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
@@ -18,10 +19,47 @@ const ProfileSettings = () => {
   const [form, setForm] = useState({
     name: user?.name || '',
     email: user?.email || '',
-    phone: '',
     university: user?.university || '',
+    campus: user?.campus || user?.university || '',
+    languages: user?.languages || ['English'],
+    learning_goals: user?.learning_goals || '',
+    skill_level: user?.skill_level || 'Intermediate',
+    bio: user?.bio || '',
   })
   const [generalSaved, setGeneralSaved] = useState(false)
+  const [generalSaving, setGeneralSaving] = useState(false)
+
+  const toggleGeneralLanguage = (lang) => {
+    setForm((f) => ({
+      ...f,
+      languages: f.languages.includes(lang)
+        ? (f.languages.length > 1 ? f.languages.filter((l) => l !== lang) : f.languages)
+        : [...f.languages, lang],
+    }))
+  }
+
+  const handleGeneralSave = async (e) => {
+    e.preventDefault()
+    setGeneralSaving(true)
+    try {
+      await updateCurrentUser({
+        name: form.name.trim(),
+        university: form.university.trim(),
+        campus: form.campus.trim(),
+        languages: form.languages,
+        learning_goals: form.learning_goals.trim(),
+        skill_level: form.skill_level,
+        bio: form.bio.trim(),
+      })
+      setGeneralSaved(true)
+      setTimeout(() => setGeneralSaved(false), 2500)
+    } catch (err) {
+      console.error('Failed to update general profile:', err)
+      alert(err.response?.data?.message || 'Failed to update profile.')
+    } finally {
+      setGeneralSaving(false)
+    }
+  }
 
   // Tutor profile state
   const [tutorProfileExists, setTutorProfileExists] = useState(false)
@@ -197,11 +235,7 @@ const ProfileSettings = () => {
       {/* ── General Profile Section ── */}
       {section === 'General Profile' && (
         <form
-          onSubmit={(e) => {
-            e.preventDefault()
-            setGeneralSaved(true)
-            setTimeout(() => setGeneralSaved(false), 2500)
-          }}
+          onSubmit={handleGeneralSave}
           className="card bg-white/95 border-slate-200/80 space-y-5 p-7 shadow-card"
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -214,18 +248,76 @@ const ProfileSettings = () => {
               <input type="email" disabled className="input bg-slate-50 cursor-not-allowed" value={form.email} />
             </div>
             <div>
-              <label className="label">Phone Number</label>
-              <input className="input" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+91 ..." />
+              <label className="label">University / Institution</label>
+              <input className="input" value={form.university} onChange={(e) => setForm({ ...form, university: e.target.value })} />
             </div>
             <div>
-              <label className="label">University / College</label>
-              <input className="input" value={form.university} onChange={(e) => setForm({ ...form, university: e.target.value })} />
+              <label className="label">Campus / Department</label>
+              <input className="input" value={form.campus} onChange={(e) => setForm({ ...form, campus: e.target.value })} placeholder="e.g. North Campus, PICT" />
             </div>
           </div>
 
+          <div>
+            <label className="label">Preferred Languages for Academic Learning</label>
+            <div className="flex flex-wrap gap-2 mt-1">
+              {['English', 'Hindi', 'Marathi'].map((lang) => (
+                <button
+                  key={lang}
+                  type="button"
+                  onClick={() => toggleGeneralLanguage(lang)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+                    form.languages.includes(lang)
+                      ? 'bg-gradient-to-r from-primary-600 to-indigo-600 border-primary-600 text-white shadow-sm'
+                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  {lang}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div>
+              <label className="label">Current Academic Skill Level</label>
+              <select
+                className="input"
+                value={form.skill_level}
+                onChange={(e) => setForm({ ...form, skill_level: e.target.value })}
+              >
+                <option value="Beginner">Beginner (Foundations &amp; Basics)</option>
+                <option value="Intermediate">Intermediate (Coursework &amp; Projects)</option>
+                <option value="Advanced">Advanced (Competitive &amp; Research)</option>
+              </select>
+            </div>
+            <div>
+              <label className="label">Learning Goals &amp; Objectives</label>
+              <input
+                className="input"
+                placeholder="e.g. Master Linear Algebra and Data Structures"
+                value={form.learning_goals}
+                onChange={(e) => setForm({ ...form, learning_goals: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="label">About Me (Bio)</label>
+            <textarea
+              className="input h-20 resize-none"
+              placeholder="A short note about your studies, passions, or target exams…"
+              value={form.bio}
+              onChange={(e) => setForm({ ...form, bio: e.target.value })}
+            />
+          </div>
+
           <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
-            <button type="submit" className="btn-primary font-bold shadow-md shadow-primary-600/25">
-              {generalSaved ? '✅ Saved!' : 'Save Details'}
+            <button
+              type="submit"
+              disabled={generalSaving}
+              className="btn-primary font-bold shadow-md shadow-primary-600/25 disabled:opacity-50"
+            >
+              {generalSaving ? 'Saving…' : generalSaved ? '✅ Saved Successfully!' : 'Save Profile Changes'}
             </button>
           </div>
         </form>

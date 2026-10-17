@@ -113,7 +113,7 @@ const TutorDashboard = () => {
   const statsList = [
     { label: 'Incoming Requests',  value: stats.incoming_requests,  icon: '📩', color: 'text-amber-700 bg-amber-50 border border-amber-200/70' },
     { label: 'Confirmed Sessions', value: stats.accepted_sessions,  icon: '✅', color: 'text-emerald-700 bg-emerald-50 border border-emerald-200/70' },
-    { label: 'Completed Sessions', value: stats.completed_sessions, icon: '🎓', color: 'text-indigo-700 bg-indigo-50 border border-indigo-200/70' },
+    { label: 'Credit Balance',     value: `${stats.credits_balance ?? 100} 🪙`, icon: '🪙', color: 'text-primary-700 bg-primary-50 border border-primary-200/70', link: '/wallet' },
     {
       label: 'Average Rating',
       value: stats.total_reviews > 0 ? `${stats.average_rating} ★` : 'N/A',
@@ -192,16 +192,25 @@ const TutorDashboard = () => {
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {statsList.map(({ label, value, subtext, icon, color }) => (
-          <div key={label} className="card hover:shadow-card-hover transition-all duration-200 bg-white/95">
-            <div className={`w-11 h-11 rounded-2xl flex items-center justify-center text-xl mb-3 shadow-inner ${color}`}>
-              {icon}
+        {statsList.map(({ label, value, subtext, icon, color, link }) => {
+          const content = (
+            <div className={`card hover:shadow-card-hover transition-all duration-200 bg-white/95 h-full ${link ? 'cursor-pointer hover:border-primary-400' : ''}`}>
+              <div className={`w-11 h-11 rounded-2xl flex items-center justify-center text-xl mb-3 shadow-inner ${color}`}>
+                {icon}
+              </div>
+              <p className="text-3xl font-extrabold text-slate-900 tracking-tight">{isLoading ? '...' : value}</p>
+              <p className="text-xs font-semibold text-slate-500 mt-1">{label}</p>
+              {subtext && <p className="text-[11px] text-slate-400 font-medium">{subtext}</p>}
             </div>
-            <p className="text-3xl font-extrabold text-slate-900 tracking-tight">{isLoading ? '...' : value}</p>
-            <p className="text-xs font-semibold text-slate-500 mt-1">{label}</p>
-            {subtext && <p className="text-[11px] text-slate-400 font-medium">{subtext}</p>}
-          </div>
-        ))}
+          )
+          return link ? (
+            <Link key={label} to={link}>
+              {content}
+            </Link>
+          ) : (
+            <div key={label}>{content}</div>
+          )
+        })}
       </div>
 
       {/* Incoming Requests */}
@@ -289,12 +298,19 @@ const TutorDashboard = () => {
       {/* Quick Actions */}
       <section>
         <h2 className="text-base font-bold text-slate-900 tracking-tight mb-3">Quick Navigation</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Link to="/manage-availability" className="card hover:shadow-card-hover hover:border-primary-300 transition-all flex items-center gap-3.5 p-4 bg-white/95">
             <div className="w-10 h-10 rounded-xl bg-primary-50 flex items-center justify-center text-xl text-primary-700">📅</div>
             <div>
               <p className="font-bold text-sm text-slate-900">Manage Availability</p>
-              <p className="text-xs text-slate-400">Add or edit your weekly time slots ({stats.available_slots} available)</p>
+              <p className="text-xs text-slate-400">Add or edit your weekly time slots ({stats.available_slots} open)</p>
+            </div>
+          </Link>
+          <Link to="/wallet" className="card hover:shadow-card-hover hover:border-primary-300 transition-all flex items-center gap-3.5 p-4 bg-white/95">
+            <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-xl text-amber-700">🪙</div>
+            <div>
+              <p className="font-bold text-sm text-slate-900">Credit Wallet</p>
+              <p className="text-xs text-slate-400">Earnings &amp; ledger transactions</p>
             </div>
           </Link>
           <Link to="/profile" className="card hover:shadow-card-hover hover:border-primary-300 transition-all flex items-center gap-3.5 p-4 bg-white/95">

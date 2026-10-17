@@ -21,6 +21,8 @@ const FindTutors = () => {
   const [query, setQuery]             = useState(searchParams.get('q') || '')
   const [subject, setSubject]         = useState(searchParams.get('subject') || '')
   const [mode, setMode]               = useState(searchParams.get('mode') || '')
+  const [language, setLanguage]       = useState(searchParams.get('language') || '')
+  const [campus, setCampus]           = useState(searchParams.get('campus') || '')
   const [date, setDate]               = useState(searchParams.get('date') || '')
   const [maxPrice, setMaxPrice]       = useState(1000)
   const [sortBy, setSortBy]           = useState('rating')
@@ -47,6 +49,8 @@ const FindTutors = () => {
       q: query,
       subject,
       mode: apiMode,
+      language,
+      campus,
       date,
       page,
       per_page: 12,
@@ -76,7 +80,7 @@ const FindTutors = () => {
       })
 
     return () => { isMounted = false }
-  }, [query, subject, mode, date, page, maxPrice, sortBy, refreshIndex])
+  }, [query, subject, mode, language, campus, date, page, maxPrice, sortBy, refreshIndex])
 
   useEffect(() => {
     let isMounted = true
@@ -88,6 +92,8 @@ const FindTutors = () => {
     fetchTutorRecommendations({
       subject,
       mode: apiMode,
+      language,
+      campus,
       limit: 3,
     })
       .then((recs) => {
@@ -100,7 +106,7 @@ const FindTutors = () => {
       })
 
     return () => { isMounted = false }
-  }, [subject, mode, refreshIndex])
+  }, [subject, mode, language, campus, refreshIndex])
 
   const handleSearch = (e) => {
     e.preventDefault()
@@ -110,6 +116,8 @@ const FindTutors = () => {
     if (query) params.q = query
     if (subject) params.subject = subject
     if (mode) params.mode = mode
+    if (language) params.language = language
+    if (campus) params.campus = campus
     if (date) params.date = date
     setSearchParams(params)
     setRefreshIndex((i) => i + 1)
@@ -119,6 +127,8 @@ const FindTutors = () => {
     setQuery('')
     setSubject('')
     setMode('')
+    setLanguage('')
+    setCampus('')
     setDate('')
     setMaxPrice(1000)
     setSortBy('rating')
@@ -128,7 +138,7 @@ const FindTutors = () => {
     setRefreshIndex((i) => i + 1)
   }
 
-  const hasFilters = Boolean(query || subject || mode || date || maxPrice < 1000 || sortBy !== 'rating')
+  const hasFilters = Boolean(query || subject || mode || language || campus || date || maxPrice < 1000 || sortBy !== 'rating')
 
   return (
     <div className="page-container py-10">
@@ -163,6 +173,10 @@ const FindTutors = () => {
         mode={mode}
         onModeChange={(m) => { setMode(m); setPage(1); setLoading(true) }}
         modesList={MODES}
+        language={language}
+        onLanguageChange={(l) => { setLanguage(l); setPage(1); setLoading(true) }}
+        campus={campus}
+        onCampusChange={(c) => { setCampus(c); setPage(1); setLoading(true) }}
         maxPrice={maxPrice}
         onMaxPriceChange={setMaxPrice}
         sortBy={sortBy}

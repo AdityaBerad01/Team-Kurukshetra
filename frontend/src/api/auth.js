@@ -28,3 +28,14 @@ export const fetchCurrentUser = async () => {
   const response = await api.get('/auth/me')
   return response.data?.data
 }
+
+/**
+ * Update authenticated user's profile details.
+ * @param {Object} data - { name, university, campus, languages, bio, learning_goals, skill_level }
+ * @returns {Promise<Object>} Updated user profile
+ */
+export const updateCurrentUser = async (data) => {
+  const response = await api.put('/auth/me', data)
+  return response.data?.data
+}
+

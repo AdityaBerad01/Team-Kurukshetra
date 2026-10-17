@@ -76,6 +76,14 @@ const Navbar = () => {
         <div className="hidden md:flex items-center gap-3">
           {user ? (
             <div className="flex items-center gap-3">
+              <Link
+                to="/wallet"
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100 transition-colors shadow-xs"
+                title="Your Learn-to-Earn Credit Balance"
+              >
+                <span>🪙</span>
+                <span>{user.credits ?? 100}</span>
+              </Link>
               <Link to="/profile" className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl hover:bg-slate-100/80 transition-all">
                 <Avatar name={user.name} initials={user.initials} size="sm" />
                 <span className="text-sm font-semibold text-slate-700">{user.name.split(' ')[0]}</span>

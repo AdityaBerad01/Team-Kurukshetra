@@ -51,6 +51,29 @@ def get_student_dashboard(student_id: str) -> Tuple[Optional[Dict[str, Any]], Op
     # Total active tutors on platform
     total_tutors = mongo.db.tutor_profiles.count_documents({})
 
+    # Real credits balance
+    credits_balance = int(user.get("credits", 100))
+
+    # Tailored recommendations for student
+    from app.services.tutor_service import get_recommendations
+    fav_subject = ""
+    subjects_to_learn = user.get("subjects_to_learn", [])
+    if subjects_to_learn:
+        fav_subject = subjects_to_learn[0]
+    elif user.get("subjects"):
+        fav_subject = user.get("subjects")[0]
+
+    recs = get_recommendations(
+        subject=fav_subject,
+        language=(user.get("languages", ["English"])[0] if user.get("languages") else ""),
+        campus=user.get("campus", ""),
+        limit=3,
+    )
+
+    # Learning progress summary
+    from app.services.assessment_service import get_progress_summary
+    progress_summary = get_progress_summary(student_str)
+
     dashboard_data = {
         "stats": {
             "total_requests": total_requests,
@@ -58,7 +81,11 @@ def get_student_dashboard(student_id: str) -> Tuple[Optional[Dict[str, Any]], Op
             "upcoming_sessions": upcoming_sessions,
             "completed_sessions": completed_sessions,
             "total_tutors": total_tutors,
+            "credits_balance": credits_balance,
+            "learning_gain": progress_summary.get("improvement_pct", 0),
         },
+        "recommendations": recs,
+        "progress": progress_summary,
         "recent_activity": recent_requests,
         "unreviewed_sessions": unreviewed,
     }
@@ -116,6 +143,7 @@ def get_tutor_dashboard(tutor_id: str) -> Tuple[Optional[Dict[str, Any]], Option
             "average_rating": avg_rating,
             "total_reviews": total_reviews,
             "total_inquiries": total_inquiries,
+            "credits_balance": int(user.get("credits", 100)),
         },
         "recent_activity": recent_requests,
     }

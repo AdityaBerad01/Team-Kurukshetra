@@ -80,8 +80,10 @@ const StudentDashboard = () => {
     { label: 'Upcoming Sessions', value: stats.upcoming_sessions, icon: '📅', color: 'text-emerald-700 bg-emerald-50 border border-emerald-200/70' },
     { label: 'Pending Requests',  value: stats.pending_requests,  icon: '⏳', color: 'text-amber-700 bg-amber-50 border border-amber-200/70' },
     { label: 'Sessions Completed',value: stats.completed_sessions,icon: '✅', color: 'text-sky-700 bg-sky-50 border border-sky-200/70' },
-    { label: 'Total Inquiries',   value: stats.total_requests,    icon: '📋', color: 'text-primary-700 bg-primary-50 border border-primary-200/70' },
+    { label: 'Learning Credits',  value: `${stats.credits_balance ?? 100} 🪙`, icon: '🪙', color: 'text-primary-700 bg-primary-50 border border-primary-200/70', link: '/wallet' },
   ]
+
+  const recommendations = dashboardData?.recommendations || []
 
   return (
     <div className="max-w-4xl space-y-8">
@@ -152,16 +154,88 @@ const StudentDashboard = () => {
 
       {/* Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {statCards.map(({ label, value, icon, color }) => (
-          <div key={label} className="card hover:shadow-card-hover transition-all duration-200 bg-white/95">
-            <div className={`w-11 h-11 rounded-2xl flex items-center justify-center text-xl mb-3 shadow-inner ${color}`}>
-              {icon}
+        {statCards.map(({ label, value, icon, color, link }) => {
+          const content = (
+            <div className={`card hover:shadow-card-hover transition-all duration-200 bg-white/95 h-full ${link ? 'cursor-pointer hover:border-primary-400' : ''}`}>
+              <div className={`w-11 h-11 rounded-2xl flex items-center justify-center text-xl mb-3 shadow-inner ${color}`}>
+                {icon}
+              </div>
+              <p className="text-3xl font-extrabold text-slate-900 tracking-tight">{isLoading ? '...' : value}</p>
+              <p className="text-xs font-semibold text-slate-500 mt-1">{label}</p>
             </div>
-            <p className="text-3xl font-extrabold text-slate-900 tracking-tight">{isLoading ? '...' : value}</p>
-            <p className="text-xs font-semibold text-slate-500 mt-1">{label}</p>
-          </div>
-        ))}
+          )
+          return link ? (
+            <Link key={label} to={link}>
+              {content}
+            </Link>
+          ) : (
+            <div key={label}>{content}</div>
+          )
+        })}
       </div>
+
+      {/* Smart Tutor Recommendations */}
+      {recommendations.length > 0 && (
+        <section className="p-6 rounded-2xl bg-gradient-to-r from-amber-50/80 via-primary-50/40 to-slate-50/80 border border-amber-200/80 shadow-xs">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <span className="flex items-center justify-center w-7 h-7 rounded-full bg-amber-500/10 text-amber-700 text-sm font-bold">
+                ✨
+              </span>
+              <div>
+                <h2 className="text-base font-bold text-slate-900 tracking-tight">
+                  Recommended Mentors for Your Goals
+                </h2>
+                <p className="text-xs text-slate-500">
+                  Algorithmic matches based on your subjects, languages, and upcoming slots
+                </p>
+              </div>
+            </div>
+            <Link to="/tutors" className="text-xs font-bold text-primary-700 hover:underline">
+              View All Mentors →
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {recommendations.map((rec) => (
+              <div key={rec.id} className="card bg-white p-4 border-slate-200 shadow-xs space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h3 className="font-bold text-sm text-slate-900">{rec.name}</h3>
+                    <p className="text-[11px] text-slate-400">📍 {rec.location || 'Campus'}</p>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-200">
+                    {rec.match_percentage || '92% match'}
+                  </span>
+                </div>
+
+                {rec.reasons && rec.reasons.length > 0 && (
+                  <div className="space-y-1">
+                    {rec.reasons.slice(0, 2).map((r, i) => (
+                      <p key={i} className="text-[11px] text-slate-600 flex items-center gap-1">
+                        <span>✓</span>
+                        <span className="truncate">{r}</span>
+                      </p>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                  <span className="text-xs font-bold text-slate-800">
+                    ₹{rec.hourlyRate || 300}<span className="text-[10px] font-normal text-slate-400">/hr</span>
+                  </span>
+                  <Link
+                    to={`/tutors/${rec.id}`}
+                    className="btn-primary py-1 px-3 text-[11px] font-bold"
+                  >
+                    View &amp; Book
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Recent Session Activity */}
       <section className="card bg-white/95">
@@ -203,7 +277,7 @@ const StudentDashboard = () => {
       {/* Quick Actions */}
       <section>
         <h2 className="text-base font-bold text-slate-900 tracking-tight mb-3">Quick Navigation</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Link to="/tutors" className="card hover:shadow-card-hover hover:border-primary-300 transition-all flex items-center gap-3.5 p-4 bg-white/95">
             <div className="w-10 h-10 rounded-xl bg-primary-50 flex items-center justify-center text-xl text-primary-700">🔍</div>
             <div>
@@ -211,18 +285,25 @@ const StudentDashboard = () => {
               <p className="text-xs text-slate-400">Filter by subjects &amp; rates</p>
             </div>
           </Link>
-          <Link to="/my-requests" className="card hover:shadow-card-hover hover:border-primary-300 transition-all flex items-center gap-3.5 p-4 bg-white/95">
-            <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-xl text-amber-700">📋</div>
+          <Link to="/wallet" className="card hover:shadow-card-hover hover:border-primary-300 transition-all flex items-center gap-3.5 p-4 bg-white/95">
+            <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-xl text-amber-700">🪙</div>
             <div>
-              <p className="font-bold text-sm text-slate-900">My Requests</p>
-              <p className="text-xs text-slate-400">History, reviews &amp; status</p>
+              <p className="font-bold text-sm text-slate-900">Credit Wallet</p>
+              <p className="text-xs text-slate-400">Balance &amp; transactions</p>
+            </div>
+          </Link>
+          <Link to="/progress" className="card hover:shadow-card-hover hover:border-primary-300 transition-all flex items-center gap-3.5 p-4 bg-white/95">
+            <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center text-xl text-teal-700">📊</div>
+            <div>
+              <p className="font-bold text-sm text-slate-900">Learning Progress</p>
+              <p className="text-xs text-slate-400">Quizzes &amp; skill growth</p>
             </div>
           </Link>
           <Link to="/profile" className="card hover:shadow-card-hover hover:border-primary-300 transition-all flex items-center gap-3.5 p-4 bg-white/95">
             <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-xl text-emerald-700">👤</div>
             <div>
               <p className="font-bold text-sm text-slate-900">Profile &amp; Settings</p>
-              <p className="text-xs text-slate-400">Account and preferences</p>
+              <p className="text-xs text-slate-400">Account &amp; preferences</p>
             </div>
           </Link>
         </div>

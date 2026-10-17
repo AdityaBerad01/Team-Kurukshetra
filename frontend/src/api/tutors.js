@@ -10,6 +10,8 @@ export const fetchTutors = async (params = {}) => {
   if (params.q) queryParams.append('q', params.q)
   if (params.subject) queryParams.append('subject', params.subject)
   if (params.mode) queryParams.append('mode', params.mode)
+  if (params.language) queryParams.append('language', params.language)
+  if (params.campus) queryParams.append('campus', params.campus)
   if (params.date) queryParams.append('date', params.date)
   if (params.page) queryParams.append('page', params.page)
   if (params.per_page) queryParams.append('per_page', params.per_page)
@@ -40,7 +42,7 @@ export const fetchMyTutorProfile = async () => {
 
 /**
  * Create a new tutor profile for the authenticated tutor.
- * @param {Object} data - { subjects, introduction, department, year_of_study, teaching_modes, hourly_rate, availability }
+ * @param {Object} data - { subjects, introduction, department, year_of_study, teaching_modes, hourly_rate, availability, languages, campus }
  * @returns {Promise<Object>} created profile
  */
 export const createTutorProfile = async (data) => {
@@ -50,7 +52,7 @@ export const createTutorProfile = async (data) => {
 
 /**
  * Update the authenticated tutor's existing profile.
- * @param {Object} data - { subjects, introduction, department, year_of_study, teaching_modes, hourly_rate, availability }
+ * @param {Object} data - { subjects, introduction, department, year_of_study, teaching_modes, hourly_rate, availability, languages, campus }
  * @returns {Promise<Object>} updated profile
  */
 export const updateTutorProfile = async (data) => {
@@ -60,13 +62,15 @@ export const updateTutorProfile = async (data) => {
 
 /**
  * Fetch explainable tutor recommendations based on real database records.
- * @param {Object} params - { subject, mode, limit }
+ * @param {Object} params - { subject, mode, language, campus, limit }
  * @returns {Promise<Array>} List of recommended tutor profiles with match reasons
  */
 export const fetchTutorRecommendations = async (params = {}) => {
   const queryParams = new URLSearchParams()
   if (params.subject) queryParams.append('subject', params.subject)
   if (params.mode) queryParams.append('mode', params.mode)
+  if (params.language) queryParams.append('language', params.language)
+  if (params.campus) queryParams.append('campus', params.campus)
   if (params.limit) queryParams.append('limit', params.limit)
 
   const url = `/tutors/recommendations${queryParams.toString() ? `?${queryParams.toString()}` : ''}`

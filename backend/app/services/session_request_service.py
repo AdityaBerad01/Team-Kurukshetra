@@ -308,6 +308,13 @@ def complete_request(user_id: str, request_id: str) -> Tuple[Optional[Dict], Opt
         except Exception:
             pass
 
+    # Transfer Learn-to-Earn credits from student to tutor
+    try:
+        from app.services.credit_service import transfer_session_completion_credits
+        transfer_session_completion_credits(request_id)
+    except Exception:
+        pass
+
     updated_req = mongo.db.session_requests.find_one({"_id": req_oid})
     enriched = _enrich_requests([updated_req])
     return enriched[0] if enriched else None, None, 200

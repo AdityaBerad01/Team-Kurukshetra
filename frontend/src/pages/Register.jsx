@@ -34,6 +34,8 @@ const Register = () => {
     confirm: '',
     role: '',
     university: '',
+    campus: '',
+    languages: ['English'],
     subjects: [],
     bio: '',
   })
@@ -43,6 +45,15 @@ const Register = () => {
     setFields((f) => ({ ...f, [k]: e.target.value }))
     if (errors[k]) setErrors((prev) => ({ ...prev, [k]: null }))
     if (apiError) setApiError(null)
+  }
+
+  const toggleLanguage = (lang) => {
+    setFields((f) => ({
+      ...f,
+      languages: f.languages.includes(lang)
+        ? (f.languages.length > 1 ? f.languages.filter((l) => l !== lang) : f.languages)
+        : [...f.languages, lang],
+    }))
   }
 
   const toggleSubject = (s) => {
@@ -73,6 +84,8 @@ const Register = () => {
         password: fields.password,
         role: fields.role.toUpperCase(),
         university: fields.university.trim(),
+        campus: fields.campus.trim() || fields.university.trim(),
+        languages: fields.languages,
         subjects: fields.subjects,
         bio: fields.bio.trim(),
       }
@@ -255,16 +268,58 @@ const Register = () => {
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="label">University / Institution</label>
+                  <input
+                    type="text"
+                    disabled={isSubmitting}
+                    className="input"
+                    placeholder="e.g. Pune University"
+                    value={fields.university}
+                    onChange={set('university')}
+                  />
+                </div>
+                <div>
+                  <label className="label">Campus / College</label>
+                  <input
+                    type="text"
+                    disabled={isSubmitting}
+                    className="input"
+                    placeholder="e.g. PICT, COEP, North Campus"
+                    value={fields.campus}
+                    onChange={set('campus')}
+                  />
+                </div>
+              </div>
+
               <div>
-                <label className="label">University / Academic Institution</label>
-                <input
-                  type="text"
-                  disabled={isSubmitting}
-                  className="input"
-                  placeholder="e.g. Mumbai University"
-                  value={fields.university}
-                  onChange={set('university')}
-                />
+                <label className="label">Preferred Languages for Learning &amp; Mentorship</label>
+                <div className="flex flex-wrap gap-2 mt-1.5">
+                  {['English', 'Hindi', 'Marathi'].map((lang) => (
+                    <button
+                      key={lang}
+                      type="button"
+                      disabled={isSubmitting}
+                      onClick={() => toggleLanguage(lang)}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+                        fields.languages.includes(lang)
+                          ? 'bg-gradient-to-r from-primary-600 to-indigo-600 border-primary-600 text-white shadow-sm'
+                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      {lang}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 100 Credits Bonus Notice */}
+              <div className="p-3.5 rounded-xl bg-amber-50/80 border border-amber-200/80 text-xs text-amber-900 flex items-center gap-2.5">
+                <span className="text-xl">🎁</span>
+                <div>
+                  <strong>Welcome Bonus:</strong> You will receive <strong>100 Learning Credits</strong> automatically upon signup to start exchanging tutoring hours!
+                </div>
               </div>
 
               <div>

@@ -47,24 +47,19 @@ def new_user(
     university: str = "",
     subjects: Optional[list] = None,
     bio: str = "",
+    credits: int = 100,
+    languages: Optional[list] = None,
+    campus: str = "",
+    learning_goals: str = "",
+    skill_level: str = "Intermediate",
+    subjects_to_learn: Optional[list] = None,
 ) -> Dict[str, Any]:
     """
     Build a new user document for MongoDB insertion.
-    
-    Args:
-        name: Full display name.
-        email: User email address (will be normalized).
-        password_hash: Securely hashed password.
-        role: One of 'STUDENT' or 'TUTOR'.
-        university: Optional academic institution.
-        subjects: Optional list of subjects.
-        bio: Optional biography.
-
-    Returns:
-        Dictionary conforming to the MongoDB users collection schema.
     """
     normalized_role = role.strip().upper()
     now = datetime.now(timezone.utc)
+    resolved_campus = campus.strip() if campus else (university.strip() if university else "")
 
     return {
         "name": name.strip(),
@@ -72,8 +67,14 @@ def new_user(
         "password_hash": password_hash,
         "role": normalized_role,
         "university": university.strip() if university else "",
+        "campus": resolved_campus,
         "subjects": subjects or [],
         "bio": bio.strip() if bio else "",
+        "credits": max(0, int(credits)),
+        "languages": languages or ["English"],
+        "learning_goals": learning_goals.strip() if learning_goals else "",
+        "skill_level": skill_level.strip() if skill_level else "Intermediate",
+        "subjects_to_learn": subjects_to_learn or [],
         "is_active": True,
         "created_at": now,
         "updated_at": now,
@@ -83,12 +84,6 @@ def new_user(
 def to_safe_user(user_doc: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     """
     Serialize a MongoDB user document into a safe dictionary for API responses.
-    
-    Guarantees:
-    - Never exposes password_hash.
-    - Converts MongoDB ObjectId to string `id`.
-    - Converts datetime timestamps to ISO format.
-    - Generates user initials for frontend avatar display.
     """
     if not user_doc:
         return None
@@ -108,8 +103,14 @@ def to_safe_user(user_doc: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]
         "role": user_doc.get("role", "STUDENT"),
         "initials": generate_initials(name),
         "university": user_doc.get("university", ""),
+        "campus": user_doc.get("campus", user_doc.get("university", "")),
         "subjects": user_doc.get("subjects", []),
         "bio": user_doc.get("bio", ""),
+        "credits": int(user_doc.get("credits", 100)),
+        "languages": user_doc.get("languages", ["English"]),
+        "learning_goals": user_doc.get("learning_goals", ""),
+        "skill_level": user_doc.get("skill_level", "Intermediate"),
+        "subjects_to_learn": user_doc.get("subjects_to_learn", []),
         "is_active": user_doc.get("is_active", True),
         "created_at": created_at_iso,
     }

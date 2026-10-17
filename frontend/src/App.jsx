@@ -20,6 +20,8 @@ import TutorDashboard     from './pages/TutorDashboard'
 import ManageAvailability from './pages/ManageAvailability'
 import MySessionRequests  from './pages/MySessionRequests'
 import ProfileSettings    from './pages/ProfileSettings'
+import Wallet             from './pages/Wallet'
+import LearningProgress   from './pages/LearningProgress'
 
 const router = createBrowserRouter([
   /* ── Public routes (with Navbar + Footer) ── */
@@ -65,6 +67,8 @@ const router = createBrowserRouter([
         ),
       },
       { path: '/my-requests',         element: <MySessionRequests />  },
+      { path: '/wallet',              element: <Wallet />             },
+      { path: '/progress',            element: <LearningProgress />   },
       { path: '/profile',             element: <ProfileSettings />    },
     ],
   },

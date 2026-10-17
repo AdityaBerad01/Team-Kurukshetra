@@ -40,6 +40,11 @@ const SearchFilterControls = ({
   onToggleFilters,
   date,
   onDateChange,
+  language,
+  onLanguageChange,
+  languagesList = ['English', 'Hindi', 'Marathi'],
+  campus,
+  onCampusChange,
   hasFilters,
   onClearFilters,
 }) => {
@@ -176,6 +181,35 @@ const SearchFilterControls = ({
                 type="date"
                 value={date || ''}
                 onChange={(e) => onDateChange && onDateChange(e.target.value)}
+                className="input"
+              />
+            </div>
+
+            {/* Language Selector */}
+            <div>
+              <label className="label">Language</label>
+              <select
+                value={language || ''}
+                onChange={(e) => onLanguageChange && onLanguageChange(e.target.value)}
+                className="input"
+              >
+                <option value="">All Languages</option>
+                {languagesList.map((lang) => (
+                  <option key={lang} value={lang}>
+                    {lang}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Campus / College Filter */}
+            <div>
+              <label className="label">Campus / College</label>
+              <input
+                type="text"
+                placeholder="e.g. COEP, PICT, Main Campus…"
+                value={campus || ''}
+                onChange={(e) => onCampusChange && onCampusChange(e.target.value)}
                 className="input"
               />
             </div>

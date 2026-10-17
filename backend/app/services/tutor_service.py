@@ -194,6 +194,8 @@ def search_tutors(
     subject: str = "",
     teaching_mode: str = "",
     availability_date: str = "",
+    language: str = "",
+    campus: str = "",
     page: int = 1,
     per_page: int = 12,
 ) -> Tuple[List[Dict], int]:
@@ -206,6 +208,14 @@ def search_tutors(
     # Subject filter
     if subject and subject.strip():
         mongo_filter["subjects"] = {"$regex": subject.strip(), "$options": "i"}
+
+    # Language filter
+    if language and language.strip():
+        mongo_filter["languages"] = {"$regex": language.strip(), "$options": "i"}
+
+    # Campus filter
+    if campus and campus.strip():
+        mongo_filter["campus"] = {"$regex": campus.strip(), "$options": "i"}
 
     # Teaching mode filter (ONLINE or ON_CAMPUS)
     if teaching_mode and teaching_mode.strip():
@@ -295,15 +305,19 @@ def search_tutors(
 def get_recommendations(
     subject: str = "",
     teaching_mode: str = "",
+    language: str = "",
+    campus: str = "",
     limit: int = 6,
 ) -> List[Dict[str, Any]]:
     """
     Generate explainable tutor recommendations based on real database records:
     - Subject match (+15 score, match reason)
     - Teaching mode match (+8 score, mode reason)
+    - Language match (+8 score, language reason)
+    - Campus match (+6 score, campus reason)
     - Available upcoming slots (+10 score, slots reason)
     - Average rating and review volume (+rating * 4, rating reason)
-    Returns list of public tutor profiles annotated with 'reasons' and 'recommendation_score'.
+    Returns list of public tutor profiles annotated with 'reasons', 'recommendation_score', and 'compatibility_score'.
     """
     now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     all_profiles = list(mongo.db.tutor_profiles.find({}))
@@ -336,6 +350,8 @@ def get_recommendations(
     norm_mode = teaching_mode.strip().upper() if teaching_mode else ""
     if norm_mode in ("IN-PERSON", "IN_PERSON"):
         norm_mode = "ON_CAMPUS"
+    norm_lang = language.strip().lower() if language else ""
+    norm_camp = campus.strip().lower() if campus else ""
 
     scored_tutors = []
     for p in all_profiles:
@@ -369,13 +385,29 @@ def get_recommendations(
         elif tutor_modes:
             score += 2.0
 
-        # 3. Available slots
+        # 3. Language match
+        tutor_langs = [str(l).strip().lower() for l in (p.get("languages") or user_doc.get("languages", ["English"]))]
+        if norm_lang:
+            if norm_lang in tutor_langs or any(norm_lang in l for l in tutor_langs):
+                score += 8.0
+                reasons.append(f"Teaches in {language}")
+            else:
+                score -= 2.0
+
+        # 4. Campus match
+        tutor_camp = str(p.get("campus") or user_doc.get("campus", "")).strip().lower()
+        if norm_camp and tutor_camp:
+            if norm_camp in tutor_camp or tutor_camp in norm_camp:
+                score += 6.0
+                reasons.append(f"Campus match ({campus})")
+
+        # 5. Available slots
         avail_count = slots_count_map.get(tutor_id, 0)
         if avail_count > 0:
             score += 10.0 + min(avail_count * 2.0, 10.0)
             reasons.append(f"{avail_count} open booking slot{'s' if avail_count > 1 else ''} this month")
 
-        # 4. Rating and reviews
+        # 6. Rating and reviews
         rating = float(p.get("rating", 0.0) or 0.0)
         reviews_count = int(p.get("review_count", 0) or 0)
         if rating > 0:
@@ -384,10 +416,15 @@ def get_recommendations(
         elif reviews_count == 0:
             reasons.append("New peer mentor ready for bookings")
 
+        # Compute normalized compatibility score (percentage 50-99%)
+        compat = min(99, max(55, int(score * 1.6 + 25)))
+
         public_tutor = to_public_tutor(p, user_doc)
         public_tutor["reasons"] = reasons
         public_tutor["available_slots_count"] = avail_count
         public_tutor["recommendation_score"] = round(score, 1)
+        public_tutor["compatibility_score"] = compat
+        public_tutor["match_percentage"] = f"{compat}%"
 
         scored_tutors.append(public_tutor)
 

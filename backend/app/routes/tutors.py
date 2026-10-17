@@ -75,6 +75,8 @@ def get_tutors():
     subject = request.args.get("subject", "").strip()
     teaching_mode = request.args.get("mode", "").strip() or request.args.get("teaching_mode", "").strip()
     availability_date = request.args.get("date", "").strip() or request.args.get("availability_date", "").strip()
+    language = request.args.get("language", "").strip() or request.args.get("lang", "").strip()
+    campus = request.args.get("campus", "").strip()
 
     try:
         page = int(request.args.get("page", 1))
@@ -91,6 +93,8 @@ def get_tutors():
         subject=subject,
         teaching_mode=teaching_mode,
         availability_date=availability_date,
+        language=language,
+        campus=campus,
         page=page,
         per_page=per_page,
     )
@@ -117,12 +121,20 @@ def get_recommendations():
     """
     subject = request.args.get("subject", "").strip()
     mode = request.args.get("mode", "").strip() or request.args.get("teaching_mode", "").strip()
+    language = request.args.get("language", "").strip() or request.args.get("lang", "").strip()
+    campus = request.args.get("campus", "").strip()
     try:
         limit = int(request.args.get("limit", 6))
     except ValueError:
         limit = 6
 
-    recommended = tutor_service.get_recommendations(subject=subject, teaching_mode=mode, limit=limit)
+    recommended = tutor_service.get_recommendations(
+        subject=subject,
+        teaching_mode=mode,
+        language=language,
+        campus=campus,
+        limit=limit,
+    )
     return success_response(
         data={"recommendations": recommended, "total": len(recommended)},
         message="Tutor recommendations retrieved successfully.",

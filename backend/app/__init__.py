@@ -29,6 +29,10 @@ def init_db_indexes(app: Flask):
             mongo.db.reviews.create_index([("request_id", 1)], unique=True)
             mongo.db.reviews.create_index([("tutor_id", 1), ("created_at", -1)])
             mongo.db.reviews.create_index([("student_id", 1), ("created_at", -1)])
+            mongo.db.credit_transactions.create_index([("user_id", 1), ("created_at", -1)])
+            mongo.db.credit_transactions.create_index([("related_session_id", 1), ("type", 1)])
+            mongo.db.assessments.create_index([("student_id", 1), ("status", 1)])
+            mongo.db.assessments.create_index([("tutor_id", 1), ("created_at", -1)])
         except Exception as e:
             app.logger.warning("MongoDB index initialization note: %s", e)
 
@@ -106,6 +110,10 @@ def create_app(config_overrides: dict | None = None) -> Flask:
     app.register_blueprint(reviews_bp, url_prefix="/api")
     from app.routes.dashboard import dashboard_bp
     app.register_blueprint(dashboard_bp, url_prefix="/api/dashboard")
+    from app.routes.credits import credits_bp
+    app.register_blueprint(credits_bp, url_prefix="/api/credits")
+    from app.routes.assessments import assessments_bp
+    app.register_blueprint(assessments_bp, url_prefix="/api/assessments")
 
     # ------------------------------------------------------------------ #
     #  Global Error Handlers                                               #

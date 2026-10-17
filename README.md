@@ -159,14 +159,16 @@ Web application available at: `http://localhost:5173`
 ### Authentication (`/api/auth`)
 | Method | Endpoint | Description | Auth Required |
 | :--- | :--- | :--- | :---: |
-| `POST` | `/api/auth/register` | Register new user (`STUDENT` or `TUTOR`) | No |
+| `POST` | `/api/auth/register` | Register new user (`STUDENT` or `TUTOR`) + 100 bonus credits | No |
 | `POST` | `/api/auth/login` | Authenticate credentials & return JWT | No |
 | `GET` | `/api/auth/me` | Fetch authenticated user profile | **Yes** (JWT) |
+| `PUT` | `/api/auth/me` | Update authenticated user profile, campus, goals, languages | **Yes** (JWT) |
 
-### Tutor Profiles & Discovery (`/api/tutors`)
+### Tutor Profiles, Discovery & Recommendations (`/api/tutors`)
 | Method | Endpoint | Description | Auth Required |
 | :--- | :--- | :--- | :---: |
-| `GET` | `/api/tutors` | Browse & search tutors with filters & pagination | No |
+| `GET` | `/api/tutors` | Browse & search tutors with filters (subject, mode, language, campus) | No |
+| `GET` | `/api/tutors/recommendations` | Explainable tutor recommendations with compatibility score | No |
 | `GET` | `/api/tutors/<id>` | Retrieve public profile of a tutor | No |
 | `POST` | `/api/tutors/profile` | Create authenticated tutor profile | **Yes** (`TUTOR`) |
 | `GET` | `/api/tutors/profile/me` | Fetch own tutor profile | **Yes** (`TUTOR`) |
@@ -191,7 +193,21 @@ Web application available at: `http://localhost:5173`
 | `PATCH`| `/api/requests/<id>/accept`| Tutor confirms session & locks slot | **Yes** (`TUTOR`) |
 | `PATCH`| `/api/requests/<id>/decline`| Tutor declines session request | **Yes** (`TUTOR`) |
 | `PATCH`| `/api/requests/<id>/cancel`| Student cancels session request | **Yes** (`STUDENT`)|
-| `PATCH`| `/api/requests/<id>/complete`| Mark confirmed session as completed | **Yes** (Participant)|
+| `PATCH`| `/api/requests/<id>/complete`| Mark completed + transfer credits | **Yes** (Participant)|
+
+### Learn-to-Earn Credit Wallet (`/api/credits`)
+| Method | Endpoint | Description | Auth Required |
+| :--- | :--- | :--- | :---: |
+| `GET` | `/api/credits/wallet` | View available balance, earned, spent, and ledger | **Yes** (JWT) |
+| `GET` | `/api/credits/transactions` | Query immutable transaction history ledger | **Yes** (JWT) |
+
+### Learning Progress & Assessments (`/api/assessments`)
+| Method | Endpoint | Description | Auth Required |
+| :--- | :--- | :--- | :---: |
+| `POST` | `/api/assessments` | Tutor creates diagnostic or evaluation quiz | **Yes** (`TUTOR`) |
+| `GET` | `/api/assessments/my` | Retrieve assigned assessments | **Yes** (JWT) |
+| `POST` | `/api/assessments/<id>/submit` | Student submits answers & auto-grades | **Yes** (`STUDENT`)|
+| `GET` | `/api/assessments/progress` | Learning gain delta, topic proficiencies, milestones | **Yes** (JWT) |
 
 ### Reviews & Ratings (`/api/reviews`)
 | Method | Endpoint | Description | Auth Required |
@@ -202,13 +218,13 @@ Web application available at: `http://localhost:5173`
 ### Dashboards (`/api/dashboard`)
 | Method | Endpoint | Description | Auth Required |
 | :--- | :--- | :--- | :---: |
-| `GET` | `/api/dashboard/student` | Real-time student statistics & activity | **Yes** (`STUDENT`)|
-| `GET` | `/api/dashboard/tutor` | Real-time tutor statistics & inquiries | **Yes** (`TUTOR`) |
+| `GET` | `/api/dashboard/student` | Real-time student statistics, credits, progress & recs | **Yes** (`STUDENT`)|
+| `GET` | `/api/dashboard/tutor` | Real-time tutor statistics, inquiries, and credits | **Yes** (`TUTOR`) |
 
 ### Health Check (`/api/health`)
 | Method | Endpoint | Description | Auth Required |
 | :--- | :--- | :--- | :---: |
-| `GET` | `/api/health` | Deployment liveness check with DB ping | No |
+| `GET` | `/api/health` | Deployment liveness check with live DB ping | No |
 
 ---
 

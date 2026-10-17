@@ -52,15 +52,22 @@ def to_public_tutor(profile_doc: Optional[Dict], user_doc: Optional[Dict] = None
     name = ""
     initials = ""
     university = ""
+    user_languages = ["English"]
+    user_campus = ""
     if user_doc:
         name = user_doc.get("name", "")
         initials = generate_initials(name)
         university = user_doc.get("university", "")
+        user_languages = user_doc.get("languages", ["English"])
+        user_campus = user_doc.get("campus", university)
 
     created_at = profile_doc.get("created_at")
     updated_at = profile_doc.get("updated_at")
     created_str = created_at.isoformat() if isinstance(created_at, datetime) else str(created_at or "")
     updated_str = updated_at.isoformat() if isinstance(updated_at, datetime) else str(updated_at or "")
+
+    languages = profile_doc.get("languages") or user_languages
+    campus = profile_doc.get("campus") or user_campus or university
 
     # Map teaching modes to display labels for frontend
     mode_labels = []
@@ -72,17 +79,22 @@ def to_public_tutor(profile_doc: Optional[Dict], user_doc: Optional[Dict] = None
         else:
             mode_labels.append(m)
 
+    year_study = profile_doc.get("year_of_study", "")
     return {
         "id": profile_id,
         "user_id": user_id,
         "name": name,
         "initials": initials,
         "university": university,
+        "campus": campus,
+        "location": campus or university or "Main Campus",
+        "languages": languages if isinstance(languages, list) else ["English"],
         "subjects": profile_doc.get("subjects", []),
         "introduction": profile_doc.get("introduction", ""),
         "bio": profile_doc.get("introduction", ""),  # Alias for frontend card compatibility
         "department": profile_doc.get("department", ""),
-        "year_of_study": profile_doc.get("year_of_study", ""),
+        "year_of_study": year_study,
+        "experience": year_study if year_study else "Peer Mentor",
         "teaching_modes": profile_doc.get("teaching_modes", []),
         "mode": mode_labels if mode_labels else ["Online"],
         "hourly_rate": profile_doc.get("hourly_rate", 300),
