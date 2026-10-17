@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { fetchStudentDashboard } from '../api/dashboard'
-import { cancelRequest } from '../api/requests'
+import { cancelRequest, completeRequest } from '../api/requests'
 import SessionRequestCard from '../components/SessionRequestCard'
 import SessionDetailsModal from '../components/SessionDetailsModal'
 import ReviewModal from '../components/ReviewModal'
@@ -60,6 +60,25 @@ const StudentDashboard = () => {
       setRefreshKey((k) => k + 1)
     } catch (err) {
       setError(err?.response?.data?.message || 'Failed to cancel session request.')
+    } finally {
+      setActionLoadingId(null)
+    }
+  }
+
+  const handleComplete = async (id) => {
+    if (!window.confirm('Mark this tutoring session as completed?')) {
+      return
+    }
+
+    setActionLoadingId(id)
+    setError(null)
+    setSuccessMsg(null)
+    try {
+      await completeRequest(id)
+      setSuccessMsg('Session marked as completed! You can now write a review for your mentor.')
+      setRefreshKey((k) => k + 1)
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Failed to complete session.')
     } finally {
       setActionLoadingId(null)
     }
@@ -265,6 +284,7 @@ const StudentDashboard = () => {
                 request={r}
                 viewAs="student"
                 onCancel={handleCancel}
+                onComplete={handleComplete}
                 onReview={(s) => setReviewSession(s)}
                 onViewDetails={(s) => setDetailsSession(s)}
                 isActionLoading={actionLoadingId === r.id}

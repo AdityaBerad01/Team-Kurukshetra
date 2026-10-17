@@ -8,7 +8,7 @@ import Modal from '../components/ui/Modal'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 
 const ProfileSettings = () => {
-  const { user, logout } = useAuth()
+  const { user, setUser, logout } = useAuth()
   const isTutor = user?.role?.toUpperCase() === 'TUTOR'
 
   const SECTIONS = ['General Profile', ...(isTutor ? ['Tutor Profile'] : []), 'Security', 'Notifications']
@@ -42,7 +42,7 @@ const ProfileSettings = () => {
     e.preventDefault()
     setGeneralSaving(true)
     try {
-      await updateCurrentUser({
+      const updatedUser = await updateCurrentUser({
         name: form.name.trim(),
         university: form.university.trim(),
         campus: form.campus.trim(),
@@ -51,6 +51,9 @@ const ProfileSettings = () => {
         skill_level: form.skill_level,
         bio: form.bio.trim(),
       })
+      if (updatedUser && setUser) {
+        setUser((prev) => ({ ...prev, ...updatedUser }))
+      }
       setGeneralSaved(true)
       setTimeout(() => setGeneralSaved(false), 2500)
     } catch (err) {

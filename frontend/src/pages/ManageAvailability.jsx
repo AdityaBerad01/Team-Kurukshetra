@@ -30,8 +30,9 @@ const ManageAvailability = () => {
   // Load Tutor Slots
   useEffect(() => {
     let isMounted = true
-    if (user?.id) {
-      fetchTutorSlots(user.id)
+    const tutorId = user?.id || user?._id
+    if (tutorId) {
+      fetchTutorSlots(tutorId)
         .then((data) => {
           if (isMounted) {
             setSlots(data || [])
@@ -48,7 +49,7 @@ const ManageAvailability = () => {
         })
     }
     return () => { isMounted = false }
-  }, [user?.id, refreshKey])
+  }, [user?.id, user?._id, refreshKey])
 
   const validateForm = () => {
     const errs = {}

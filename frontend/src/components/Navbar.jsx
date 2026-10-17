@@ -147,6 +147,37 @@ const Navbar = () => {
               >
                 Dashboard
               </NavLink>
+              <Link
+                to="/wallet"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 rounded-xl"
+              >
+                <span>🪙</span> Credit Wallet ({user.credits ?? 100})
+              </Link>
+              <Link
+                to="/my-requests"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 rounded-xl"
+              >
+                <span>📋</span> {isTutor ? 'Incoming Sessions' : 'My Sessions'}
+              </Link>
+              {isTutor ? (
+                <Link
+                  to="/manage-availability"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 rounded-xl"
+                >
+                  <span>📅</span> My Availability
+                </Link>
+              ) : (
+                <Link
+                  to="/progress"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 rounded-xl"
+                >
+                  <span>📊</span> Learning Progress
+                </Link>
+              )}
               <Link to="/profile" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 rounded-xl">
                 <Avatar name={user.name} size="sm" /> Profile &amp; Settings
               </Link>

@@ -1,7 +1,14 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { fetchMyRequests, cancelRequest, completeRequest } from '../api/requests'
+import {
+  fetchMyRequests,
+  fetchIncomingRequests,
+  cancelRequest,
+  completeRequest,
+  acceptRequest,
+  declineRequest,
+} from '../api/requests'
 import SessionRequestCard from '../components/SessionRequestCard'
 import SessionDetailsModal from '../components/SessionDetailsModal'
 import ReviewModal from '../components/ReviewModal'
@@ -19,6 +26,9 @@ const FILTERS = [
 
 const MySessionRequests = () => {
   const { user } = useAuth()
+  const isTutor = user?.role?.toUpperCase() === 'TUTOR'
+  const viewAs = isTutor ? 'tutor' : 'student'
+
   const [requests, setRequests] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [actionLoadingId, setActionLoadingId] = useState(null)
@@ -33,7 +43,8 @@ const MySessionRequests = () => {
 
   useEffect(() => {
     let isMounted = true
-    fetchMyRequests()
+    const fetchFn = isTutor ? fetchIncomingRequests : fetchMyRequests
+    fetchFn()
       .then((data) => {
         if (isMounted) {
           setRequests(data || [])
@@ -50,7 +61,37 @@ const MySessionRequests = () => {
     return () => {
       isMounted = false
     }
-  }, [refreshKey])
+  }, [refreshKey, isTutor])
+
+  const handleAccept = async (id) => {
+    setActionLoadingId(id)
+    setError(null)
+    setSuccessMsg(null)
+    try {
+      await acceptRequest(id)
+      setSuccessMsg('Session request accepted! The slot is now confirmed.')
+      setRefreshKey((k) => k + 1)
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Failed to accept session request.')
+    } finally {
+      setActionLoadingId(null)
+    }
+  }
+
+  const handleDecline = async (id) => {
+    setActionLoadingId(id)
+    setError(null)
+    setSuccessMsg(null)
+    try {
+      await declineRequest(id)
+      setSuccessMsg('Session request declined.')
+      setRefreshKey((k) => k + 1)
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Failed to decline session request.')
+    } finally {
+      setActionLoadingId(null)
+    }
+  }
 
   const handleCancel = async (id) => {
     if (!window.confirm('Are you sure you want to cancel this tutoring request?')) {
@@ -115,12 +156,18 @@ const MySessionRequests = () => {
         <div>
           <div className="flex items-center gap-2 text-xs font-bold text-primary-700 uppercase tracking-wider mb-1">
             <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            Booking History &amp; Reviews
+            {isTutor ? 'Incoming Mentorship Sessions' : 'Booking History & Reviews'}
           </div>
           <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-            {user?.name ? `${user.name.split(' ')[0]}'s Tutoring Requests` : 'My Session Requests'}
+            {isTutor
+              ? 'Incoming Tutoring Requests'
+              : user?.name ? `${user.name.split(' ')[0]}'s Tutoring Requests` : 'My Session Requests'}
           </h1>
-          <p className="text-slate-500 text-sm mt-0.5">Track, complete, and review all your academic tutoring appointments.</p>
+          <p className="text-slate-500 text-sm mt-0.5">
+            {isTutor
+              ? 'Review, accept, decline, or complete tutoring appointments scheduled by students.'
+              : 'Track, complete, and review all your academic tutoring appointments.'}
+          </p>
         </div>
         <div className="flex items-center gap-2.5">
           <button
@@ -136,9 +183,11 @@ const MySessionRequests = () => {
             <span>🔄</span>
             <span>Refresh</span>
           </button>
-          <Link to="/tutors" className="btn-primary gap-2 font-bold shadow-md shadow-primary-600/25 flex-shrink-0 text-xs py-2 px-3.5">
-            <span>+ Find Tutor</span>
-          </Link>
+          {!isTutor && (
+            <Link to="/tutors" className="btn-primary gap-2 font-bold shadow-md shadow-primary-600/25 flex-shrink-0 text-xs py-2 px-3.5">
+              <span>+ Find Tutor</span>
+            </Link>
+          )}
         </div>
       </div>
 
@@ -193,8 +242,20 @@ const MySessionRequests = () => {
         <EmptyState
           icon="📋"
           title={`No ${filter === 'all' ? '' : filter} requests`}
-          description={filter === 'all' ? 'You have not submitted any tutoring requests yet.' : `No requests found with status '${filter}'.`}
-          action={<Link to="/tutors" className="btn-primary">Find a Tutor</Link>}
+          description={
+            filter === 'all'
+              ? isTutor
+                ? 'You have not received any session requests yet.'
+                : 'You have not submitted any tutoring requests yet.'
+              : `No requests found with status '${filter}'.`
+          }
+          action={
+            isTutor ? (
+              <Link to="/manage-availability" className="btn-primary">Manage Availability</Link>
+            ) : (
+              <Link to="/tutors" className="btn-primary">Find a Tutor</Link>
+            )
+          }
         />
       ) : (
         <div className="space-y-4">
@@ -202,7 +263,9 @@ const MySessionRequests = () => {
             <SessionRequestCard
               key={r.id}
               request={r}
-              viewAs="student"
+              viewAs={viewAs}
+              onAccept={handleAccept}
+              onReject={handleDecline}
               onCancel={handleCancel}
               onComplete={handleComplete}
               onReview={(s) => setReviewSession(s)}
