@@ -38,6 +38,8 @@ const SearchFilterControls = ({
   sortOptions = [],
   filtersOpen,
   onToggleFilters,
+  date,
+  onDateChange,
   hasFilters,
   onClearFilters,
 }) => {
@@ -165,6 +167,17 @@ const SearchFilterControls = ({
                   </option>
                 ))}
               </select>
+            </div>
+
+            {/* Availability Date */}
+            <div>
+              <label className="label">Availability Date</label>
+              <input
+                type="date"
+                value={date || ''}
+                onChange={(e) => onDateChange && onDateChange(e.target.value)}
+                className="input"
+              />
             </div>
           </div>
 

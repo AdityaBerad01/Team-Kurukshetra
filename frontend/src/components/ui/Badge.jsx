@@ -16,9 +16,11 @@ const variantMap = {
 
 const STATUS_VARIANTS = {
   confirmed: 'green',
+  accepted:  'green',
   pending:   'yellow',
   completed: 'blue',
   rejected:  'red',
+  declined:  'red',
   cancelled: 'gray',
   active:    'green',
   inactive:  'gray',

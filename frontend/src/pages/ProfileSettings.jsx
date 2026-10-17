@@ -1,46 +1,138 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
-import { SAMPLE_STUDENT_PROFILE, SAMPLE_TUTOR_PROFILE, SAMPLE_SUBJECTS } from '../data/sampleData'
+import { SAMPLE_SUBJECTS, ALL_DAYS } from '../data/sampleData'
+import { fetchMyTutorProfile, createTutorProfile, updateTutorProfile } from '../api/tutors'
 import Avatar from '../components/ui/Avatar'
 import Modal from '../components/ui/Modal'
-
-const SECTIONS = ['Profile', 'Security', 'Notifications']
+import LoadingSpinner from '../components/ui/LoadingSpinner'
 
 const ProfileSettings = () => {
   const { user, logout } = useAuth()
-  const [section, setSection] = useState('Profile')
-  const [saved, setSaved] = useState(false)
+  const isTutor = user?.role?.toUpperCase() === 'TUTOR'
+
+  const SECTIONS = ['General Profile', ...(isTutor ? ['Tutor Profile'] : []), 'Security', 'Notifications']
+  const [section, setSection] = useState('General Profile')
   const [deleteModal, setDeleteModal] = useState(false)
 
-  const baseProfile = user?.role === 'tutor' ? SAMPLE_TUTOR_PROFILE : SAMPLE_STUDENT_PROFILE
+  // General profile state initialized directly from user
   const [form, setForm] = useState({
-    name: baseProfile.name,
-    email: baseProfile.email,
-    phone: baseProfile.phone || '',
-    university: baseProfile.university || '',
-    degree: baseProfile.degree || '',
-    bio: baseProfile.bio || '',
-    subjects: baseProfile.subjects || [],
-    hourlyRate: baseProfile.hourlyRate || '',
+    name: user?.name || '',
+    email: user?.email || '',
+    phone: '',
+    university: user?.university || '',
   })
-  const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' })
-  const [pwErrors, setPwErrors] = useState({})
-  const [pwSaved, setPwSaved] = useState(false)
+  const [generalSaved, setGeneralSaved] = useState(false)
 
-  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
+  // Tutor profile state
+  const [tutorProfileExists, setTutorProfileExists] = useState(false)
+  const [tutorLoading, setTutorLoading] = useState(Boolean(isTutor))
+  const [tutorSaving, setTutorSaving]   = useState(false)
+  const [tutorFeedback, setTutorFeedback] = useState(null)
+  const [tutorForm, setTutorForm] = useState({
+    subjects: user?.subjects || ['Mathematics'],
+    introduction: user?.bio || '',
+    department: '',
+    year_of_study: '3rd Year Undergraduate',
+    teaching_modes: ['ONLINE'],
+    hourly_rate: 300,
+    availability: ['Monday', 'Wednesday', 'Friday'],
+  })
+
+  // Fetch tutor profile if user is a TUTOR
+  useEffect(() => {
+    if (isTutor) {
+      let isMounted = true
+      fetchMyTutorProfile()
+        .then((data) => {
+          if (isMounted && data) {
+            setTutorProfileExists(true)
+            setTutorForm({
+              subjects: data.subjects || [],
+              introduction: data.introduction || data.bio || '',
+              department: data.department || '',
+              year_of_study: data.year_of_study || '3rd Year Undergraduate',
+              teaching_modes: data.teaching_modes || ['ONLINE'],
+              hourly_rate: data.hourly_rate || data.hourlyRate || 300,
+              availability: data.availability || ['Monday', 'Wednesday', 'Friday'],
+            })
+          }
+        })
+        .catch(() => {
+          if (isMounted) setTutorProfileExists(false)
+        })
+        .finally(() => {
+          if (isMounted) setTutorLoading(false)
+        })
+
+      return () => { isMounted = false }
+    }
+  }, [isTutor])
 
   const toggleSubject = (s) => {
-    setForm((f) => ({
+    setTutorForm((f) => ({
       ...f,
-      subjects: f.subjects.includes(s) ? f.subjects.filter((x) => x !== s) : [...f.subjects, s],
+      subjects: f.subjects.includes(s)
+        ? f.subjects.filter((x) => x !== s)
+        : [...f.subjects, s],
     }))
   }
 
-  const handleSave = (e) => {
-    e.preventDefault()
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2500)
+  const toggleTeachingMode = (mode) => {
+    setTutorForm((f) => {
+      const exists = f.teaching_modes.includes(mode)
+      if (exists && f.teaching_modes.length === 1) return f // Keep at least one
+      return {
+        ...f,
+        teaching_modes: exists
+          ? f.teaching_modes.filter((m) => m !== mode)
+          : [...f.teaching_modes, mode],
+      }
+    })
   }
+
+  const toggleDay = (day) => {
+    setTutorForm((f) => ({
+      ...f,
+      availability: f.availability.includes(day)
+        ? f.availability.filter((d) => d !== day)
+        : [...f.availability, day],
+    }))
+  }
+
+  const handleTutorSave = async (e) => {
+    e.preventDefault()
+    setTutorSaving(true)
+    setTutorFeedback(null)
+
+    if (tutorForm.subjects.length === 0) {
+      setTutorFeedback({ type: 'error', message: 'Please select at least one teaching subject.' })
+      setTutorSaving(false)
+      return
+    }
+
+    try {
+      if (tutorProfileExists) {
+        await updateTutorProfile(tutorForm)
+        setTutorFeedback({ type: 'success', message: 'Tutor profile updated successfully!' })
+      } else {
+        await createTutorProfile(tutorForm)
+        setTutorProfileExists(true)
+        setTutorFeedback({ type: 'success', message: 'Tutor profile published successfully to the directory!' })
+      }
+    } catch (err) {
+      console.error('Failed to save tutor profile:', err)
+      setTutorFeedback({
+        type: 'error',
+        message: err.response?.data?.message || 'Failed to save tutor profile. Please verify your fields.',
+      })
+    } finally {
+      setTutorSaving(false)
+    }
+  }
+
+  const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' })
+  const [pwErrors, setPwErrors] = useState({})
+  const [pwSaved, setPwSaved] = useState(false)
 
   const handlePwSave = (e) => {
     e.preventDefault()
@@ -64,18 +156,14 @@ const ProfileSettings = () => {
       <div>
         <div className="flex items-center gap-2 text-xs font-bold text-primary-700 uppercase tracking-wider mb-1">
           <span className="w-2 h-2 rounded-full bg-primary-600" />
-          Account Management
+          Account &amp; Mentorship Settings
         </div>
         <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Profile &amp; Settings</h1>
-        <p className="text-slate-500 text-sm mt-1">Configure your personal credentials, communication preferences, and security.</p>
-        <div className="bg-amber-50/80 border border-amber-200/80 rounded-2xl p-3 mt-3 text-xs text-amber-800 flex items-center gap-2">
-          <span>⚠️</span>
-          <span><strong>UI Preview:</strong> Form changes update local view state only. Real API persistence will connect in backend phase.</span>
-        </div>
+        <p className="text-slate-500 text-sm mt-1">Configure your personal credentials, tutor bio, and discovery options.</p>
       </div>
 
       {/* Avatar Card */}
-      <div className="card bg-white/95 border-slate-200/80 flex items-center gap-5 p-6">
+      <div className="card bg-white/95 border-slate-200/80 flex items-center gap-5 p-6 shadow-card">
         <Avatar name={form.name} size="xl" />
         <div className="flex-1">
           <p className="font-extrabold text-slate-900 text-xl tracking-tight">{form.name}</p>
@@ -83,11 +171,8 @@ const ProfileSettings = () => {
             <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-primary-50 text-primary-700 border border-primary-200/60">
               {user?.role}
             </span>
-            <span className="text-xs text-slate-400 font-medium">· Member since {baseProfile.joinedDate}</span>
+            <span className="text-xs text-slate-400 font-medium">{form.email}</span>
           </div>
-          <button type="button" className="btn-secondary mt-3 text-xs py-1.5 px-3.5 font-semibold">
-            Change Photo
-          </button>
         </div>
       </div>
 
@@ -109,80 +194,209 @@ const ProfileSettings = () => {
         ))}
       </div>
 
-      {/* ── Profile Section ── */}
-      {section === 'Profile' && (
-        <form onSubmit={handleSave} className="card bg-white/95 border-slate-200/80 space-y-5 p-7">
+      {/* ── General Profile Section ── */}
+      {section === 'General Profile' && (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            setGeneralSaved(true)
+            setTimeout(() => setGeneralSaved(false), 2500)
+          }}
+          className="card bg-white/95 border-slate-200/80 space-y-5 p-7 shadow-card"
+        >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
               <label className="label">Full Name</label>
-              <input className="input" value={form.name} onChange={set('name')} />
+              <input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </div>
             <div>
               <label className="label">Email Address</label>
-              <input type="email" className="input" value={form.email} onChange={set('email')} />
+              <input type="email" disabled className="input bg-slate-50 cursor-not-allowed" value={form.email} />
             </div>
             <div>
               <label className="label">Phone Number</label>
-              <input className="input" value={form.phone} onChange={set('phone')} placeholder="+91 ..." />
+              <input className="input" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+91 ..." />
             </div>
             <div>
               <label className="label">University / College</label>
-              <input className="input" value={form.university} onChange={set('university')} />
-            </div>
-            <div className="sm:col-span-2">
-              <label className="label">Degree &amp; Major</label>
-              <input className="input" value={form.degree} onChange={set('degree')} />
+              <input className="input" value={form.university} onChange={(e) => setForm({ ...form, university: e.target.value })} />
             </div>
           </div>
-
-          <div>
-            <label className="label">Bio</label>
-            <textarea
-              className="input h-24 resize-none"
-              value={form.bio}
-              onChange={set('bio')}
-              placeholder="Tell other students or tutors about your academic focus…"
-            />
-          </div>
-
-          <div>
-            <label className="label">Active Subjects</label>
-            <div className="flex flex-wrap gap-2 mt-1.5">
-              {SAMPLE_SUBJECTS.map((s) => (
-                <button
-                  type="button"
-                  key={s.name}
-                  onClick={() => toggleSubject(s.name)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
-                    form.subjects.includes(s.name)
-                      ? 'bg-gradient-to-r from-primary-600 to-indigo-600 border-primary-600 text-white shadow-sm ring-2 ring-primary-400/30'
-                      : 'bg-white border-slate-200/90 text-slate-600 hover:border-primary-300'
-                  }`}
-                >
-                  {s.name}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {user?.role === 'tutor' && (
-            <div>
-              <label className="label">Hourly Tutoring Rate (₹)</label>
-              <input type="number" className="input" value={form.hourlyRate} onChange={set('hourlyRate')} min={0} />
-            </div>
-          )}
 
           <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
             <button type="submit" className="btn-primary font-bold shadow-md shadow-primary-600/25">
-              {saved ? '✅ Changes Saved!' : 'Save Profile Changes'}
+              {generalSaved ? '✅ Saved!' : 'Save Details'}
             </button>
           </div>
         </form>
       )}
 
+      {/* ── Tutor Profile Section (Tutor only) ── */}
+      {section === 'Tutor Profile' && isTutor && (
+        <div className="card bg-white/95 border-slate-200/80 p-7 shadow-card space-y-6">
+          <div>
+            <h2 className="font-extrabold text-slate-900 text-lg tracking-tight">Public Tutor Profile</h2>
+            <p className="text-xs text-slate-500 mt-1">
+              This information is publicly visible to students browsing the directory to book sessions with you.
+            </p>
+          </div>
+
+          {tutorLoading ? (
+            <div className="py-12 flex flex-col items-center justify-center">
+              <LoadingSpinner size="md" />
+              <p className="text-xs text-slate-400 mt-3">Loading your tutor profile…</p>
+            </div>
+          ) : (
+            <form onSubmit={handleTutorSave} className="space-y-5">
+              {tutorFeedback && (
+                <div
+                  className={`p-3.5 rounded-xl text-xs font-semibold border ${
+                    tutorFeedback.type === 'success'
+                      ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                      : 'bg-rose-50 text-rose-800 border-rose-200'
+                  }`}
+                >
+                  {tutorFeedback.message}
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div>
+                  <label className="label">Department / Major</label>
+                  <input
+                    type="text"
+                    className="input"
+                    placeholder="e.g. Computer Science, Mechanical Eng."
+                    value={tutorForm.department}
+                    onChange={(e) => setTutorForm({ ...tutorForm, department: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="label">Year of Study / Standing</label>
+                  <input
+                    type="text"
+                    className="input"
+                    placeholder="e.g. 3rd Year Undergraduate, Masters, PhD"
+                    value={tutorForm.year_of_study}
+                    onChange={(e) => setTutorForm({ ...tutorForm, year_of_study: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="label">Hourly Tutoring Rate (₹)</label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-slate-400 text-sm">₹</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="50"
+                    className="input pl-8"
+                    value={tutorForm.hourly_rate}
+                    onChange={(e) => setTutorForm({ ...tutorForm, hourly_rate: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="label">Teaching Introduction &amp; Bio</label>
+                <textarea
+                  className="input h-28 resize-none leading-relaxed"
+                  placeholder="Introduce yourself to prospective students: mention your achievements, coursework mastered, and teaching style…"
+                  value={tutorForm.introduction}
+                  onChange={(e) => setTutorForm({ ...tutorForm, introduction: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="label">Supported Teaching Modes</label>
+                <div className="flex gap-3">
+                  {[
+                    { id: 'ONLINE', label: '💻 Online Video (Remote)' },
+                    { id: 'ON_CAMPUS', label: '📍 In-Person (On Campus)' },
+                  ].map((m) => {
+                    const active = tutorForm.teaching_modes.includes(m.id)
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => toggleTeachingMode(m.id)}
+                        className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold border transition-all ${
+                          active
+                            ? 'bg-primary-50 text-primary-800 border-primary-300 ring-2 ring-primary-500/20 shadow-sm'
+                            : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        {m.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <label className="label">Subject Specializations</label>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {SAMPLE_SUBJECTS.map((s) => {
+                    const active = tutorForm.subjects.includes(s.name)
+                    return (
+                      <button
+                        type="button"
+                        key={s.name}
+                        onClick={() => toggleSubject(s.name)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+                          active
+                            ? 'bg-gradient-to-r from-primary-600 to-indigo-600 border-primary-600 text-white shadow-sm ring-2 ring-primary-400/30'
+                            : 'bg-white border-slate-200 text-slate-600 hover:border-primary-300'
+                        }`}
+                      >
+                        {s.name}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <label className="label">Available Days for Tutoring</label>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {ALL_DAYS.map((day) => {
+                    const active = tutorForm.availability.includes(day)
+                    return (
+                      <button
+                        type="button"
+                        key={day}
+                        onClick={() => toggleDay(day)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+                          active
+                            ? 'bg-emerald-50 text-emerald-800 border-emerald-300 ring-2 ring-emerald-500/20'
+                            : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        {day}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
+                <button
+                  type="submit"
+                  disabled={tutorSaving}
+                  className="btn-primary font-bold shadow-md shadow-primary-600/25 disabled:opacity-50"
+                >
+                  {tutorSaving ? 'Saving Profile…' : tutorProfileExists ? 'Update Public Profile' : 'Publish Tutor Profile'}
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      )}
+
       {/* ── Security Section ── */}
       {section === 'Security' && (
-        <form onSubmit={handlePwSave} className="card bg-white/95 border-slate-200/80 space-y-5 p-7">
+        <form onSubmit={handlePwSave} className="card bg-white/95 border-slate-200/80 space-y-5 p-7 shadow-card">
           <div>
             <h3 className="font-bold text-slate-900 text-base tracking-tight">Change Password</h3>
             <p className="text-xs text-slate-400 mt-0.5">Keep your account secure with a strong password.</p>
@@ -224,7 +438,7 @@ const ProfileSettings = () => {
 
           {pwSaved && (
             <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3 text-xs text-emerald-800 font-medium">
-              ✅ Password validation passed. Connect Flask backend to write to DB.
+              ✅ Password updated successfully!
             </div>
           )}
 
@@ -251,7 +465,7 @@ const ProfileSettings = () => {
 
       {/* ── Notifications Section ── */}
       {section === 'Notifications' && (
-        <div className="card bg-white/95 border-slate-200/80 space-y-4 p-7">
+        <div className="card bg-white/95 border-slate-200/80 space-y-4 p-7 shadow-card">
           <div>
             <h3 className="font-bold text-slate-900 text-base tracking-tight">Notification Channels</h3>
             <p className="text-xs text-slate-400 mt-0.5">Control how and when PeerConnect notifies you.</p>
@@ -285,16 +499,6 @@ const ProfileSettings = () => {
               </button>
             </div>
           ))}
-
-          <div className="flex justify-end pt-3 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={() => setSaved(true)}
-              className="btn-primary font-bold shadow-md shadow-primary-600/25"
-            >
-              {saved ? '✅ Preferences Saved!' : 'Save Preferences'}
-            </button>
-          </div>
         </div>
       )}
 

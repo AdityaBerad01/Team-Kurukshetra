@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { SAMPLE_SUBJECTS, SAMPLE_TUTORS } from '../data/sampleData'
+import { fetchTutors } from '../api/tutors'
 import TutorCard from '../components/TutorCard'
 
 /* ────── Hero search bar ────── */
@@ -63,8 +64,24 @@ const STATS = [
 ]
 
 const Home = () => {
-  const featuredTutors = SAMPLE_TUTORS.filter((t) => t.verified).slice(0, 3)
+  const [featuredTutors, setFeaturedTutors] = useState([])
   const popularSubjects = SAMPLE_SUBJECTS.slice(0, 8)
+
+  useEffect(() => {
+    let isMounted = true
+    fetchTutors({ per_page: 3 })
+      .then((data) => {
+        if (isMounted && data.tutors && data.tutors.length > 0) {
+          setFeaturedTutors(data.tutors)
+        } else if (isMounted) {
+          setFeaturedTutors(SAMPLE_TUTORS.slice(0, 3))
+        }
+      })
+      .catch(() => {
+        if (isMounted) setFeaturedTutors(SAMPLE_TUTORS.slice(0, 3))
+      })
+    return () => { isMounted = false }
+  }, [])
 
   return (
     <div className="bg-brand-bg">

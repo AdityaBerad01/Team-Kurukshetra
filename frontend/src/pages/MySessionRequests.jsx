@@ -1,25 +1,83 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { SAMPLE_STUDENT_REQUESTS } from '../data/sampleData'
+import { fetchMyRequests, cancelRequest } from '../api/requests'
 import SessionRequestCard from '../components/SessionRequestCard'
 import EmptyState from '../components/ui/EmptyState'
+import LoadingSpinner from '../components/ui/LoadingSpinner'
 
-const FILTERS = ['all', 'pending', 'confirmed', 'completed', 'rejected', 'cancelled']
+const FILTERS = [
+  { key: 'all', label: 'All Requests' },
+  { key: 'pending', label: 'Pending' },
+  { key: 'accepted', label: 'Accepted' },
+  { key: 'declined', label: 'Declined' },
+  { key: 'cancelled', label: 'Cancelled' },
+]
 
 const MySessionRequests = () => {
   const { user } = useAuth()
-  const [requests, setRequests] = useState(SAMPLE_STUDENT_REQUESTS)
+  const [requests, setRequests] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [actionLoadingId, setActionLoadingId] = useState(null)
+  const [error, setError] = useState(null)
+  const [successMsg, setSuccessMsg] = useState(null)
   const [filter, setFilter] = useState('all')
+  const [refreshKey, setRefreshKey] = useState(0)
 
-  const handleCancel = (id) => setRequests((rs) => rs.map((r) => (r.id === id ? { ...r, status: 'cancelled' } : r)))
+  useEffect(() => {
+    let isMounted = true
+    fetchMyRequests()
+      .then((data) => {
+        if (isMounted) {
+          setRequests(data || [])
+          setError(null)
+          setIsLoading(false)
+        }
+      })
+      .catch((err) => {
+        if (isMounted) {
+          setError(err?.response?.data?.message || 'Failed to load your session requests.')
+          setIsLoading(false)
+        }
+      })
+    return () => {
+      isMounted = false
+    }
+  }, [refreshKey])
 
-  const displayed = filter === 'all' ? requests : requests.filter((r) => r.status === filter)
+  const handleCancel = async (id) => {
+    if (!window.confirm('Are you sure you want to cancel this tutoring request?')) {
+      return
+    }
+
+    setActionLoadingId(id)
+    setError(null)
+    setSuccessMsg(null)
+    try {
+      await cancelRequest(id)
+      setSuccessMsg('Session request cancelled successfully.')
+      setRefreshKey((k) => k + 1)
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Failed to cancel session request.')
+    } finally {
+      setActionLoadingId(null)
+    }
+  }
+
+  const matchesFilter = (r, f) => {
+    if (f === 'all') return true
+    const s = (r.status || '').toLowerCase()
+    if (f === 'accepted') return s === 'accepted' || s === 'confirmed'
+    if (f === 'declined') return s === 'declined' || s === 'rejected'
+    return s === f
+  }
+
+  const displayed = requests.filter((r) => matchesFilter(r, filter))
 
   const counts = FILTERS.reduce(
     (acc, f) => ({
       ...acc,
-      [f]: f === 'all' ? requests.length : requests.filter((r) => r.status === f).length,
+      [f.key]: requests.filter((r) => matchesFilter(r, f.key)).length,
     }),
     {},
   )
@@ -38,55 +96,90 @@ const MySessionRequests = () => {
           </h1>
           <p className="text-slate-500 text-sm mt-0.5">Track and manage all your academic tutoring appointments.</p>
         </div>
-        <Link to="/tutors" className="btn-primary gap-2 font-bold shadow-md shadow-primary-600/25 flex-shrink-0">
-          <span>+ Find New Tutor</span>
-        </Link>
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => {
+              setIsLoading(true)
+              setRefreshKey((k) => k + 1)
+            }}
+            disabled={isLoading}
+            className="btn-secondary text-xs py-2 px-3 flex items-center gap-1.5"
+            title="Refresh requests"
+          >
+            <span>🔄</span>
+            <span>Refresh</span>
+          </button>
+          <Link to="/tutors" className="btn-primary gap-2 font-bold shadow-md shadow-primary-600/25 flex-shrink-0 text-xs py-2 px-3.5">
+            <span>+ Find Tutor</span>
+          </Link>
+        </div>
       </div>
 
-      <div className="bg-amber-50/80 border border-amber-200/80 rounded-2xl p-3 text-xs text-amber-800 flex items-center gap-2">
-        <span>⚠️</span>
-        <span>Showing simulated session records for UI preview. Real requests will sync with MongoDB.</span>
-      </div>
+      {/* Notifications */}
+      {error && (
+        <div className="p-3.5 rounded-xl text-xs font-medium bg-rose-50 border border-rose-200 text-rose-700 flex items-center justify-between">
+          <span>{error}</span>
+          <button type="button" onClick={() => setError(null)} className="text-rose-500 font-bold ml-2">✕</button>
+        </div>
+      )}
+      {successMsg && (
+        <div className="p-3.5 rounded-xl text-xs font-medium bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center justify-between">
+          <span>{successMsg}</span>
+          <button type="button" onClick={() => setSuccessMsg(null)} className="text-emerald-600 font-bold ml-2">✕</button>
+        </div>
+      )}
 
       {/* Filter Tabs */}
       <div className="flex gap-2 overflow-x-auto pb-1.5 scrollbar-thin">
         {FILTERS.map((f) => (
           <button
-            key={f}
+            key={f.key}
             type="button"
-            onClick={() => setFilter(f)}
+            onClick={() => setFilter(f.key)}
             className={`flex-shrink-0 px-4 py-2 rounded-xl text-xs font-bold border transition-all duration-150 ${
-              filter === f
+              filter === f.key
                 ? 'bg-gradient-to-r from-primary-600 to-indigo-600 border-primary-600 text-white shadow-md shadow-primary-600/25 ring-2 ring-primary-400/30'
                 : 'bg-white border-slate-200/90 text-slate-600 hover:bg-slate-50 hover:text-slate-900'
             }`}
           >
-            {f.charAt(0).toUpperCase() + f.slice(1)}
-            {counts[f] > 0 && (
+            {f.label}
+            {counts[f.key] > 0 && (
               <span
                 className={`ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
-                  filter === f ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-600'
+                  filter === f.key ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-600'
                 }`}
               >
-                {counts[f]}
+                {counts[f.key]}
               </span>
             )}
           </button>
         ))}
       </div>
 
-      {/* Results */}
-      {displayed.length === 0 ? (
+      {/* Content State */}
+      {isLoading ? (
+        <div className="card text-center py-12">
+          <LoadingSpinner size="md" />
+          <p className="text-sm font-medium text-slate-400 mt-2">Loading session requests...</p>
+        </div>
+      ) : displayed.length === 0 ? (
         <EmptyState
           icon="📋"
           title={`No ${filter === 'all' ? '' : filter} requests`}
-          description="Your tutoring appointments will be logged here."
+          description={filter === 'all' ? 'You have not submitted any tutoring requests yet.' : `No requests found with status '${filter}'.`}
           action={<Link to="/tutors" className="btn-primary">Find a Tutor</Link>}
         />
       ) : (
         <div className="space-y-4">
           {displayed.map((r) => (
-            <SessionRequestCard key={r.id} request={r} viewAs="student" onCancel={handleCancel} />
+            <SessionRequestCard
+              key={r.id}
+              request={r}
+              viewAs="student"
+              onCancel={handleCancel}
+              isActionLoading={actionLoadingId === r.id}
+            />
           ))}
         </div>
       )}

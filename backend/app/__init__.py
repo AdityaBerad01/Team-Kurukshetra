@@ -24,7 +24,7 @@ def create_app(config_overrides: dict | None = None) -> Flask:
     # ------------------------------------------------------------------ #
     app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-change-me")
     app.config["JWT_SECRET_KEY"] = os.environ.get("JWT_SECRET_KEY", "dev-jwt-change-me")
-    app.config["MONGO_URI"] = os.environ.get("MONGO_URI", "mongodb://localhost:27017/peerconnect")
+    app.config["MONGO_URI"] = os.environ.get("MONGO_URI", "mongodb://127.0.0.1:27017/peerconnect")
 
     if config_overrides:
         app.config.update(config_overrides)
@@ -47,5 +47,11 @@ def create_app(config_overrides: dict | None = None) -> Flask:
     app.register_blueprint(health_bp, url_prefix="/api")
     from app.routes.auth import auth_bp
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
+    from app.routes.tutors import tutors_bp
+    app.register_blueprint(tutors_bp, url_prefix="/api/tutors")
+    from app.routes.slots import slots_bp
+    app.register_blueprint(slots_bp, url_prefix="/api/slots")
+    from app.routes.requests import requests_bp
+    app.register_blueprint(requests_bp, url_prefix="/api/requests")
 
     return app
