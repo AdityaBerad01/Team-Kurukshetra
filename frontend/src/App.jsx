@@ -22,6 +22,11 @@ import MySessionRequests  from './pages/MySessionRequests'
 import ProfileSettings    from './pages/ProfileSettings'
 import Wallet             from './pages/Wallet'
 import LearningProgress   from './pages/LearningProgress'
+import CommunityResources from './pages/CommunityResources'
+import FocusRooms         from './pages/FocusRooms'
+import SessionPlanner     from './pages/SessionPlanner'
+import CampusSkillMap     from './pages/CampusSkillMap'
+import Portfolio          from './pages/Portfolio'
 
 const router = createBrowserRouter([
   /* ── Public routes (with Navbar + Footer) ── */
@@ -34,6 +39,10 @@ const router = createBrowserRouter([
       { path: 'register',           element: <Register />    },
       { path: 'tutors',             element: <FindTutors />  },
       { path: 'tutors/:id',         element: <TutorProfile />},
+      { path: 'resources',          element: <CommunityResources /> },
+      { path: 'focus-rooms',        element: <FocusRooms /> },
+      { path: 'campus-skill-map',   element: <CampusSkillMap /> },
+      { path: 'portfolio/:id',      element: <Portfolio /> },
       { path: '*',                  element: <NotFound />    },
     ],
   },
@@ -67,6 +76,11 @@ const router = createBrowserRouter([
         ),
       },
       { path: '/my-requests',         element: <MySessionRequests />  },
+      { path: '/planner',             element: <SessionPlanner />     },
+      { path: '/resources',           element: <CommunityResources /> },
+      { path: '/focus-rooms',         element: <FocusRooms />         },
+      { path: '/campus-skill-map',    element: <CampusSkillMap />     },
+      { path: '/portfolio',           element: <Portfolio />          },
       { path: '/wallet',              element: <Wallet />             },
       { path: '/progress',            element: <LearningProgress />   },
       { path: '/profile',             element: <ProfileSettings />    },

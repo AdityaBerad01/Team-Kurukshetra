@@ -4,8 +4,11 @@ import { useAuth } from '../context/AuthContext'
 import Avatar from './ui/Avatar'
 
 const NAV_LINKS = [
-  { to: '/',          label: 'Home',        exact: true },
-  { to: '/tutors',    label: 'Find Tutors', exact: false },
+  { to: '/',                 label: 'Home',         exact: true },
+  { to: '/tutors',           label: 'Find Tutors',  exact: false },
+  { to: '/resources',        label: 'Resources',    exact: false },
+  { to: '/focus-rooms',      label: 'Focus Rooms',  exact: false },
+  { to: '/campus-skill-map', label: 'Skill Map',    exact: false },
 ]
 
 const Navbar = () => {

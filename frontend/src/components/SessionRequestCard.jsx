@@ -24,6 +24,7 @@ const SessionRequestCard = ({
   onComplete,
   onReview,
   onViewDetails,
+  onFindBackup,
   isActionLoading = false,
 }) => {
   const { tutorName, tutorInitials, studentName, studentInitials, subject, topic, status, date, time, duration, mode, notes, is_reviewed, review } = request
@@ -139,6 +140,17 @@ const SessionRequestCard = ({
             className="px-4 py-1.5 rounded-xl text-xs font-bold bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-400 hover:to-orange-400 shadow-sm shadow-amber-500/20 transition-all active:scale-[0.98]"
           >
             ⭐ Leave Review
+          </button>
+        )}
+
+        {/* Smart Backup Tutor Button for Declined/Cancelled Requests */}
+        {viewAs === 'student' && (normStatus === 'declined' || normStatus === 'cancelled' || normStatus === 'rejected') && onFindBackup && (
+          <button
+            type="button"
+            onClick={() => onFindBackup(request)}
+            className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-gradient-to-r from-indigo-600 to-violet-600 text-white hover:from-indigo-500 hover:to-violet-500 shadow-sm shadow-indigo-600/20 transition-all active:scale-[0.98]"
+          >
+            ✨ Find Backup Tutor
           </button>
         )}
       </div>

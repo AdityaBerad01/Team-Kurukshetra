@@ -12,6 +12,7 @@ import {
 import SessionRequestCard from '../components/SessionRequestCard'
 import SessionDetailsModal from '../components/SessionDetailsModal'
 import ReviewModal from '../components/ReviewModal'
+import BackupTutorModal from '../components/BackupTutorModal'
 import EmptyState from '../components/ui/EmptyState'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 
@@ -40,6 +41,7 @@ const MySessionRequests = () => {
   // Modals state
   const [detailsSession, setDetailsSession] = useState(null)
   const [reviewSession, setReviewSession] = useState(null)
+  const [backupSession, setBackupSession] = useState(null)
 
   useEffect(() => {
     let isMounted = true
@@ -270,6 +272,7 @@ const MySessionRequests = () => {
               onComplete={handleComplete}
               onReview={(s) => setReviewSession(s)}
               onViewDetails={(s) => setDetailsSession(s)}
+              onFindBackup={(s) => setBackupSession(s)}
               isActionLoading={actionLoadingId === r.id}
             />
           ))}
@@ -286,6 +289,15 @@ const MySessionRequests = () => {
             setSuccessMsg('Review submitted successfully! Thank you for rating your tutor.')
             setRefreshKey((k) => k + 1)
           }}
+        />
+      )}
+
+      {/* Backup Tutor Modal */}
+      {backupSession && (
+        <BackupTutorModal
+          isOpen={Boolean(backupSession)}
+          onClose={() => setBackupSession(null)}
+          session={backupSession}
         />
       )}
 

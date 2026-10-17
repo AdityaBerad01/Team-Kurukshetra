@@ -291,7 +291,145 @@ def run_e2e_test():
     assert status in (400, 403), f"Expected 400/403 for unauthorized cancel, got {status}"
     print("   [PASS] Protected endpoints reject unauthenticated and unauthorized requests.")
 
-    print("\n=== ALL 16 FULL-STACK END-TO-END INTEGRATION TESTS PASSED SUCCESSFULLY! ===")
+    # 17. Community Resources Lifecycle
+    print("\n17. Testing Community Notes & Resources...")
+    res_payload = {
+        "title": "Calculus 1 Cheat Sheet",
+        "description": "Comprehensive cheat sheet covering derivatives, limits, and integrals.",
+        "subject": "Mathematics",
+        "topic": "Calculus",
+        "resource_type": "LINK",
+        "url": "https://math.edu/calculus-cheatsheet.pdf",
+        "tags": ["calculus", "derivatives"]
+    }
+    status, res_create = make_req("POST", "/resources", res_payload, token=student_token)
+    assert status == 201, f"Create resource failed: {res_create}"
+    resource_id = res_create.get("data", {}).get("id")
+    assert resource_id, "No resource ID returned"
+
+    # Search resources
+    status, res_search = make_req("GET", "/resources?subject=Mathematics")
+    assert status == 200, f"Search resources failed: {res_search}"
+    assert len(res_search.get("data", {}).get("resources", [])) >= 1
+
+    # Upvote toggle
+    status, res_upvote = make_req("POST", f"/resources/{resource_id}/upvote", token=student_token)
+    assert status == 200, f"Upvote failed: {res_upvote}"
+    assert res_upvote.get("data", {}).get("upvotes") == 1
+    print("   [PASS] Community resources published, searched, and upvoted.")
+
+    # 18. Focus Rooms & Study Sprints
+    print("\n18. Testing Focus Rooms & Study Sprints...")
+    room_payload = {
+        "title": f"Math Study Room {uid}",
+        "subject": "Mathematics",
+        "duration_minutes": 25,
+        "max_participants": 10
+    }
+    status, res_room = make_req("POST", "/focus/rooms", room_payload, token=student_token)
+    assert status == 201, f"Create room failed: {res_room}"
+    room_id = res_room.get("data", {}).get("id")
+
+    # List active rooms
+    status, res_rooms = make_req("GET", "/focus/rooms")
+    assert status == 200, f"List rooms failed: {res_rooms}"
+    assert any(r.get("id") == room_id for r in res_rooms.get("data", []))
+
+    # Complete a study sprint
+    sprint_payload = {
+        "subject": "Mathematics",
+        "goal": "Master limit theorems",
+        "duration_minutes": 25,
+        "room_id": room_id
+    }
+    status, res_sprint = make_req("POST", "/focus/complete-sprint", sprint_payload, token=student_token)
+    assert status == 201, f"Log sprint failed: {res_sprint}"
+
+    # Get student focus stats
+    status, res_fstats = make_req("GET", "/focus/my-stats", token=student_token)
+    assert status == 200, f"Focus stats failed: {res_fstats}"
+    assert res_fstats.get("data", {}).get("total_sprints", 0) >= 1
+    print("   [PASS] Focus room created, sprint logged, and focus statistics updated.")
+
+    # 19. Smart Session Planner & Confidence Tracker
+    print("\n19. Testing Session Planner & Confidence Tracker...")
+    plan_payload = {
+        "objectives": "Understand epsilon-delta proofs and solve 5 problem sets.",
+        "difficult_concepts": "Epsilon-delta definitions",
+        "agenda_items": [
+            {"id": "a1", "text": "Review definitions", "completed": True},
+            {"id": "a2", "text": "Work through 3 sample problems", "completed": False}
+        ]
+    }
+    status, res_plan = make_req("PUT", f"/requests/{req_id}/plan", plan_payload, token=tutor_token)
+    assert status == 200, f"Update plan failed: {res_plan}"
+
+    # Fetch plan
+    status, res_get_plan = make_req("GET", f"/requests/{req_id}/plan", token=student_token)
+    assert status == 200, f"Get plan failed: {res_get_plan}"
+    assert len(res_get_plan.get("data", {}).get("agenda_items", [])) == 2
+
+    # Student records confidence
+    conf_payload = {
+        "pre_confidence": 2,
+        "post_confidence": 5,
+        "confidence_notes": "Great progress, fully understood after tutor explanation."
+    }
+    status, res_conf = make_req("POST", f"/requests/{req_id}/confidence", conf_payload, token=student_token)
+    assert status == 200, f"Record confidence failed: {res_conf}"
+
+    # Fetch confidence trends
+    status, res_trends = make_req("GET", "/confidence/my-trends", token=student_token)
+    assert status == 200, f"Confidence trends failed: {res_trends}"
+    assert len(res_trends.get("data", [])) >= 1
+    print("   [PASS] Session plan updated, confidence tracked, and trends retrieved.")
+
+    # 20. Campus Skill Demand Map
+    print("\n20. Testing Campus Skill Demand Map...")
+    status, res_smap = make_req("GET", "/campus-skill-map")
+    assert status == 200, f"Campus skill map failed: {res_smap}"
+    smap_data = res_smap.get("data", {})
+    assert "total_active_students" in smap_data
+    assert "total_active_tutors" in smap_data
+    assert "subject_breakdown" in smap_data
+    print("   [PASS] Campus skill map aggregated demand and tutor supply metrics.")
+
+    # 21. Proof-of-Skill Portfolio
+    print("\n21. Testing Proof-of-Skill Portfolio...")
+    status, res_port = make_req("GET", "/portfolio/me", token=student_token)
+    assert status == 200, f"Portfolio fetch failed: {res_port}"
+    port_data = res_port.get("data", {})
+    assert "verified_achievements" in port_data
+
+    # Update portfolio projects & skills
+    update_port_payload = {
+        "headline": "Aspiring Software Engineer & Math Enthusiast",
+        "skills": ["Calculus", "Python", "Data Structures"],
+        "projects": [
+            {
+                "id": f"proj_{uid}",
+                "title": "Peer Tutoring Bot",
+                "description": "Discord bot that schedules study sessions.",
+                "link": "https://github.com/example/bot",
+                "tags": ["Python", "API"]
+            }
+        ]
+    }
+    status, res_port_up = make_req("PUT", "/portfolio/me", update_port_payload, token=student_token)
+    assert status == 200, f"Update portfolio failed: {res_port_up}"
+    assert len(res_port_up.get("data", {}).get("projects", [])) >= 1
+    print("   [PASS] Portfolio verified badges and projects updated.")
+
+    # 22. Smart Backup Tutor Search
+    print("\n22. Testing Smart Backup Tutor Search...")
+    status, res_backup = make_req("GET", f"/requests/{req_id}/backup-tutors", token=student_token)
+    assert status == 200, f"Backup tutors failed: {res_backup}"
+    backup_data = res_backup.get("data", {})
+    assert "backup_tutors" in backup_data
+    assert "original_request_id" in backup_data
+    print(f"   [PASS] Backup tutor discovery verified (found {len(backup_data.get('backup_tutors', []))} backup matches).")
+
+    print("\n=== ALL 22 FULL-STACK END-TO-END INTEGRATION TESTS PASSED SUCCESSFULLY! ===")
 
 if __name__ == "__main__":
     try:

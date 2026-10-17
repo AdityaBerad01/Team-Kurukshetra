@@ -33,6 +33,12 @@ def init_db_indexes(app: Flask):
             mongo.db.credit_transactions.create_index([("related_session_id", 1), ("type", 1)])
             mongo.db.assessments.create_index([("student_id", 1), ("status", 1)])
             mongo.db.assessments.create_index([("tutor_id", 1), ("created_at", -1)])
+            mongo.db.resources.create_index([("subject", 1), ("upvotes", -1)])
+            mongo.db.resources.create_index([("author_id", 1)])
+            mongo.db.focus_rooms.create_index([("status", 1), ("expires_at", 1)])
+            mongo.db.focus_sprints.create_index([("user_id", 1), ("completed_at", -1)])
+            mongo.db.session_plans.create_index([("request_id", 1)], unique=True)
+            mongo.db.portfolios.create_index([("user_id", 1)], unique=True)
         except Exception as e:
             app.logger.warning("MongoDB index initialization note: %s", e)
 
@@ -114,6 +120,16 @@ def create_app(config_overrides: dict | None = None) -> Flask:
     app.register_blueprint(credits_bp, url_prefix="/api/credits")
     from app.routes.assessments import assessments_bp
     app.register_blueprint(assessments_bp, url_prefix="/api/assessments")
+    from app.routes.resources import resources_bp
+    app.register_blueprint(resources_bp, url_prefix="/api/resources")
+    from app.routes.focus import focus_bp
+    app.register_blueprint(focus_bp, url_prefix="/api/focus")
+    from app.routes.session_plans import session_plans_bp
+    app.register_blueprint(session_plans_bp, url_prefix="/api")
+    from app.routes.skill_map import skill_map_bp
+    app.register_blueprint(skill_map_bp, url_prefix="/api")
+    from app.routes.portfolio import portfolio_bp
+    app.register_blueprint(portfolio_bp, url_prefix="/api/portfolio")
 
     # ------------------------------------------------------------------ #
     #  Global Error Handlers                                               #

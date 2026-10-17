@@ -124,3 +124,19 @@ def get_session_request_details(request_id: str):
         return error_response(message=err_msg, status_code=status_code)
 
     return success_response(data=req, message="Session request details retrieved.")
+
+
+@requests_bp.route("/<request_id>/backup-tutors", methods=["GET"])
+@jwt_required()
+def get_backup_tutors(request_id: str):
+    """
+    Retrieve smart backup tutor recommendations when a session is declined or cancelled.
+    """
+    user_id = get_jwt_identity()
+    from app.services.backup_tutor_service import get_backup_tutors_for_request
+
+    data, err_msg, status_code = get_backup_tutors_for_request(user_id, request_id)
+    if err_msg:
+        return error_response(message=err_msg, status_code=status_code)
+
+    return success_response(data=data, message="Backup tutor recommendations retrieved.")

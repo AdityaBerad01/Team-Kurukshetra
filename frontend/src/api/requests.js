@@ -77,3 +77,13 @@ export const fetchRequestById = async (requestId) => {
   const response = await api.get(`/requests/${requestId}`)
   return response.data.data
 }
+
+/**
+ * Retrieve smart backup tutor recommendations when a session is declined or cancelled.
+ * @param {string} requestId
+ * @returns {Promise<Object>} backup tutors recommendations
+ */
+export const fetchBackupTutors = async (requestId) => {
+  const response = await api.get(`/requests/${requestId}/backup-tutors`)
+  return response.data.data
+}
