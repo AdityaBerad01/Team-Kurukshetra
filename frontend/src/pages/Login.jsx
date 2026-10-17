@@ -12,35 +12,14 @@ const validate = (fields) => {
   return errors
 }
 
-const DEMO_ACCOUNTS = {
-  student: {
-    name: 'Aditya Berad',
-    email: 'aditya.student@peerconnect.edu',
-    password: 'Password123!',
-    role: 'STUDENT',
-    university: 'University of Engineering',
-  },
-  tutor: {
-    name: 'Priya Sharma',
-    email: 'priya.tutor@peerconnect.edu',
-    password: 'Password123!',
-    role: 'TUTOR',
-    university: 'National Science Institute',
-    subjects: ['Mathematics', 'Computer Science'],
-    bio: 'Senior computer science tutor specialized in algorithms and calculus.',
-  },
-}
-
 const Login = () => {
-  const { login, register } = useAuth()
+  const { login } = useAuth()
   const navigate = useNavigate()
 
   const [fields, setFields] = useState({ email: '', password: '' })
   const [errors, setErrors] = useState({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [apiError, setApiError] = useState(null)
-  const [demoRole, setDemoRole] = useState('student')
-  const [quickLoginLoading, setQuickLoginLoading] = useState(false)
 
   const set = (k) => (e) => {
     setFields((f) => ({ ...f, [k]: e.target.value }))
@@ -74,44 +53,6 @@ const Login = () => {
     }
   }
 
-  const handleQuickLogin = async () => {
-    const demo = DEMO_ACCOUNTS[demoRole]
-    setQuickLoginLoading(true)
-    setApiError(null)
-
-    try {
-      // 1. Try logging in first
-      try {
-        const user = await login(demo.email, demo.password)
-        handleSuccessfulAuth(user)
-        return
-      } catch (loginErr) {
-        // If not found or invalid credentials, auto-register the demo user
-        if (loginErr.response?.status === 401 || loginErr.response?.status === 404) {
-          try {
-            const registeredUser = await register(demo)
-            handleSuccessfulAuth(registeredUser)
-            return
-          } catch (regErr) {
-            // If already registered, re-attempt login
-            if (regErr.response?.status === 409) {
-              const user = await login(demo.email, demo.password)
-              handleSuccessfulAuth(user)
-              return
-            }
-            throw regErr
-          }
-        }
-        throw loginErr
-      }
-    } catch (err) {
-      console.error('Quick login error:', err)
-      setApiError(err.response?.data?.message || 'Quick login encountered an issue. You can sign in manually.')
-    } finally {
-      setQuickLoginLoading(false)
-    }
-  }
-
   return (
     <div className="min-h-[calc(100vh-64px)] bg-brand-bg flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
@@ -139,7 +80,7 @@ const Login = () => {
               <label className="label">Email Address</label>
               <input
                 type="email"
-                disabled={isSubmitting || quickLoginLoading}
+                disabled={isSubmitting}
                 className={`input ${errors.email ? 'input-error' : ''}`}
                 placeholder="you@university.edu"
                 value={fields.email}
@@ -158,7 +99,7 @@ const Login = () => {
               </div>
               <input
                 type="password"
-                disabled={isSubmitting || quickLoginLoading}
+                disabled={isSubmitting}
                 className={`input ${errors.password ? 'input-error' : ''}`}
                 placeholder="••••••••"
                 value={fields.password}
@@ -170,7 +111,7 @@ const Login = () => {
 
             <button
               type="submit"
-              disabled={isSubmitting || quickLoginLoading}
+              disabled={isSubmitting}
               className="btn-primary w-full justify-center py-3 font-bold text-sm shadow-lg shadow-primary-600/25 disabled:opacity-50"
             >
               {isSubmitting ? (
@@ -184,46 +125,7 @@ const Login = () => {
             </button>
           </form>
 
-          {/* Quick Sign-In Explorer */}
-          <div className="mt-8 pt-6 border-t border-slate-100">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-center text-slate-400 mb-3">
-              One-Click Role Explorer
-            </p>
-            <div className="flex gap-2 mb-3 bg-slate-50 p-1 rounded-xl border border-slate-200/70">
-              {['student', 'tutor'].map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  disabled={isSubmitting || quickLoginLoading}
-                  onClick={() => setDemoRole(r)}
-                  className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                    demoRole === r
-                      ? 'bg-white text-primary-700 shadow-sm ring-1 ring-slate-200/70'
-                      : 'text-slate-500 hover:text-slate-800'
-                  }`}
-                >
-                  {r === 'student' ? '📚 Student View' : '🎓 Tutor View'}
-                </button>
-              ))}
-            </div>
-            <button
-              type="button"
-              disabled={isSubmitting || quickLoginLoading}
-              onClick={handleQuickLogin}
-              className="btn-secondary w-full justify-center py-2.5 text-xs font-bold text-slate-700 disabled:opacity-50"
-            >
-              {quickLoginLoading ? (
-                <span className="flex items-center gap-2">
-                  <LoadingSpinner size="sm" />
-                  <span>Authenticating demo session…</span>
-                </span>
-              ) : (
-                `Sign in as Demo ${demoRole === 'student' ? 'Student (Aditya)' : 'Tutor (Priya)'} →`
-              )}
-            </button>
-          </div>
-
-          <p className="text-center text-sm text-slate-500 mt-6 font-normal">
+          <p className="text-center text-sm text-slate-500 mt-8 font-normal">
             Don&apos;t have an account yet?{' '}
             <Link to="/register" className="text-primary-600 font-bold hover:text-primary-700 hover:underline">
               Sign up free

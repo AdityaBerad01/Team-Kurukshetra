@@ -221,7 +221,7 @@ const Register = () => {
                   type="text"
                   disabled={isSubmitting}
                   className={`input ${errors.name ? 'input-error' : ''}`}
-                  placeholder="Aditya Berad"
+                  placeholder="e.g. Jane Doe"
                   value={fields.name}
                   onChange={set('name')}
                 />
@@ -234,7 +234,7 @@ const Register = () => {
                   type="email"
                   disabled={isSubmitting}
                   className={`input ${errors.email ? 'input-error' : ''}`}
-                  placeholder="aditya@university.edu"
+                  placeholder="you@university.edu"
                   value={fields.email}
                   onChange={set('email')}
                 />

@@ -40,18 +40,8 @@ export const AuthProvider = ({ children }) => {
 
   /**
    * Log in with email and password via Flask backend.
-   * Also accepts an existing user object for demo/testing.
    */
   const login = useCallback(async (emailOrData, password) => {
-    // If called with a mock/demo user object directly
-    if (typeof emailOrData === 'object' && emailOrData !== null && !password) {
-      if (emailOrData.access_token) {
-        localStorage.setItem('access_token', emailOrData.access_token)
-      }
-      setUser(emailOrData)
-      return emailOrData
-    }
-
     const payload = typeof emailOrData === 'object' ? emailOrData : { email: emailOrData, password }
     const result = await loginUser(payload)
     if (result?.access_token) {
