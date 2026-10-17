@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { SAMPLE_SUBJECTS, SAMPLE_TUTORS } from '../data/sampleData'
+import { SAMPLE_SUBJECTS } from '../data/sampleData'
 import { fetchTutors } from '../api/tutors'
 import TutorCard from '../components/TutorCard'
+import LoadingSpinner from '../components/ui/LoadingSpinner'
 
 /* ────── Hero search bar ────── */
 const HeroSearch = () => {
@@ -65,20 +66,22 @@ const STATS = [
 
 const Home = () => {
   const [featuredTutors, setFeaturedTutors] = useState([])
+  const [loadingTutors, setLoadingTutors] = useState(true)
   const popularSubjects = SAMPLE_SUBJECTS.slice(0, 8)
 
   useEffect(() => {
     let isMounted = true
     fetchTutors({ per_page: 3 })
       .then((data) => {
-        if (isMounted && data.tutors && data.tutors.length > 0) {
-          setFeaturedTutors(data.tutors)
-        } else if (isMounted) {
-          setFeaturedTutors(SAMPLE_TUTORS.slice(0, 3))
+        if (isMounted) {
+          setFeaturedTutors(data.tutors || [])
         }
       })
       .catch(() => {
-        if (isMounted) setFeaturedTutors(SAMPLE_TUTORS.slice(0, 3))
+        if (isMounted) setFeaturedTutors([])
+      })
+      .finally(() => {
+        if (isMounted) setLoadingTutors(false)
       })
     return () => { isMounted = false }
   }, [])
@@ -204,11 +207,30 @@ const Home = () => {
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {featuredTutors.map((tutor) => (
-              <TutorCard key={tutor.id} tutor={tutor} />
-            ))}
-          </div>
+          {loadingTutors ? (
+            <div className="py-12 flex justify-center">
+              <LoadingSpinner size="md" />
+            </div>
+          ) : featuredTutors.length > 0 ? (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {featuredTutors.map((tutor) => (
+                <TutorCard key={tutor.id} tutor={tutor} />
+              ))}
+            </div>
+          ) : (
+            <div className="card text-center py-12 px-6 bg-white/95 max-w-lg mx-auto border-slate-200">
+              <div className="w-12 h-12 rounded-2xl bg-primary-50 text-primary-700 flex items-center justify-center text-2xl mx-auto mb-3">
+                🎓
+              </div>
+              <h3 className="font-bold text-slate-900 text-base mb-1">Discover Academic Mentors</h3>
+              <p className="text-slate-500 text-xs mb-5">
+                Explore our full verified peer tutor directory to find mentors by subject, rate, and availability.
+              </p>
+              <Link to="/tutors" className="btn-primary inline-flex justify-center text-xs">
+                Browse All Tutors →
+              </Link>
+            </div>
+          )}
         </div>
       </section>
 

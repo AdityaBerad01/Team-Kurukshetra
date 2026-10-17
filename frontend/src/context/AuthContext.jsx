@@ -1,27 +1,104 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { loginUser, registerUser, fetchCurrentUser } from '../api/auth'
 
-/**
- * AuthContext – UI-only placeholder.
- *
- * ⚠️  No real authentication is implemented here.
- * This context tracks a local UI state so pages can conditionally render
- * based on role. Replace with real JWT / session logic when the backend is ready.
- */
 const AuthContext = createContext(null)
 
 export const AuthProvider = ({ children }) => {
-  // null = logged out.  Object = logged-in user shape.
   const [user, setUser] = useState(null)
+  const [isLoading, setIsLoading] = useState(Boolean(localStorage.getItem('access_token')))
 
-  /** Simulate login – DOES NOT call any backend endpoint */
-  const login = (userData) => setUser(userData)
+  // Verify and hydrate current user from JWT token on page mount
+  useEffect(() => {
+    const token = localStorage.getItem('access_token')
+    if (!token) return
 
-  /** Clear local user state */
-  const logout = () => setUser(null)
+    let isMounted = true
+    fetchCurrentUser()
+      .then((safeUser) => {
+        if (isMounted && safeUser) {
+          setUser(safeUser)
+        }
+      })
+      .catch(() => {
+        // Token invalid or expired
+        if (isMounted) {
+          localStorage.removeItem('access_token')
+          setUser(null)
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsLoading(false)
+        }
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  /**
+   * Log in with email and password via Flask backend.
+   * Also accepts an existing user object for demo/testing.
+   */
+  const login = useCallback(async (emailOrData, password) => {
+    // If called with a mock/demo user object directly
+    if (typeof emailOrData === 'object' && emailOrData !== null && !password) {
+      if (emailOrData.access_token) {
+        localStorage.setItem('access_token', emailOrData.access_token)
+      }
+      setUser(emailOrData)
+      return emailOrData
+    }
+
+    const payload = typeof emailOrData === 'object' ? emailOrData : { email: emailOrData, password }
+    const result = await loginUser(payload)
+    if (result?.access_token) {
+      localStorage.setItem('access_token', result.access_token)
+    }
+    const loggedInUser = result?.user || result
+    setUser(loggedInUser)
+    return loggedInUser
+  }, [])
+
+  /**
+   * Register a new user via Flask backend and authenticate automatically.
+   */
+  const register = useCallback(async (formData) => {
+    const result = await registerUser(formData)
+    if (result?.access_token) {
+      localStorage.setItem('access_token', result.access_token)
+    }
+    setUser(result)
+    return result
+  }, [])
+
+  /**
+   * Clear JWT access token and logged-in user state.
+   */
+  const logout = useCallback(() => {
+    localStorage.removeItem('access_token')
+    setUser(null)
+  }, [])
+
+  const isTutor = user?.role?.toUpperCase() === 'TUTOR'
+  const isStudent = user?.role?.toUpperCase() === 'STUDENT'
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isLoggedIn: !!user }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        setUser,
+        isLoading,
+        isLoggedIn: !!user,
+        isTutor,
+        isStudent,
+        login,
+        register,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   )

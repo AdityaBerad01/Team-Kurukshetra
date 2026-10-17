@@ -109,6 +109,26 @@ def get_tutors():
     )
 
 
+@tutors_bp.route("/recommendations", methods=["GET"])
+def get_recommendations():
+    """
+    Public explainable tutor recommendations endpoint.
+    Returns recommended tutors matching subject, mode, open slots, and ratings.
+    """
+    subject = request.args.get("subject", "").strip()
+    mode = request.args.get("mode", "").strip() or request.args.get("teaching_mode", "").strip()
+    try:
+        limit = int(request.args.get("limit", 6))
+    except ValueError:
+        limit = 6
+
+    recommended = tutor_service.get_recommendations(subject=subject, teaching_mode=mode, limit=limit)
+    return success_response(
+        data={"recommendations": recommended, "total": len(recommended)},
+        message="Tutor recommendations retrieved successfully.",
+    )
+
+
 @tutors_bp.route("/<tutor_id>", methods=["GET"])
 def get_tutor(tutor_id: str):
     """

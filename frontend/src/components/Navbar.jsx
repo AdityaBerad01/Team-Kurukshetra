@@ -19,7 +19,8 @@ const Navbar = () => {
     setMenuOpen(false)
   }
 
-  const dashboardPath = user?.role === 'tutor' ? '/tutor-dashboard' : '/student-dashboard'
+  const isTutor = user?.role?.toUpperCase() === 'TUTOR'
+  const dashboardPath = isTutor ? '/tutor-dashboard' : '/student-dashboard'
 
   return (
     <header className="bg-white/85 backdrop-blur-md border-b border-slate-200/60 sticky top-0 z-50 shadow-[0_1px_3px_0_rgba(15,23,42,0.03)] transition-all">

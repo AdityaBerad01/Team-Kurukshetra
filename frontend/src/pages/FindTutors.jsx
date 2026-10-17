@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { fetchTutors } from '../api/tutors'
+import { fetchTutors, fetchTutorRecommendations } from '../api/tutors'
 import { SAMPLE_SUBJECTS } from '../data/sampleData'
 import TutorCard from '../components/TutorCard'
 import EmptyState from '../components/ui/EmptyState'
@@ -28,6 +28,7 @@ const FindTutors = () => {
   const [filtersOpen, setFiltersOpen] = useState(false)
 
   const [tutors, setTutors]           = useState([])
+  const [recommendations, setRecommendations] = useState([])
   const [total, setTotal]             = useState(0)
   const [totalPages, setTotalPages]   = useState(1)
   const [loading, setLoading]         = useState(true)
@@ -76,6 +77,30 @@ const FindTutors = () => {
 
     return () => { isMounted = false }
   }, [query, subject, mode, date, page, maxPrice, sortBy, refreshIndex])
+
+  useEffect(() => {
+    let isMounted = true
+
+    let apiMode = mode
+    if (mode === 'In-person') apiMode = 'ON_CAMPUS'
+    else if (mode === 'Online') apiMode = 'ONLINE'
+
+    fetchTutorRecommendations({
+      subject,
+      mode: apiMode,
+      limit: 3,
+    })
+      .then((recs) => {
+        if (!isMounted) return
+        setRecommendations(Array.isArray(recs) ? recs : [])
+      })
+      .catch((err) => {
+        console.warn('Failed to load tutor recommendations:', err)
+        if (isMounted) setRecommendations([])
+      })
+
+    return () => { isMounted = false }
+  }, [subject, mode, refreshIndex])
 
   const handleSearch = (e) => {
     e.preventDefault()
@@ -187,8 +212,43 @@ const FindTutors = () => {
         />
       )}
 
+      {/* Recommended Mentors Highlight */}
+      {!loading && !error && recommendations.length > 0 && (
+        <section aria-label="Recommended Mentors" className="mb-10 p-6 rounded-2xl bg-gradient-to-r from-amber-50/70 via-primary-50/40 to-slate-50/60 border border-amber-200/70 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+            <div className="flex items-center gap-2">
+              <span className="flex items-center justify-center w-7 h-7 rounded-full bg-amber-500/10 text-amber-700 text-sm font-bold">
+                ✨
+              </span>
+              <div>
+                <h2 className="text-base font-bold text-slate-900 tracking-tight">
+                  Recommended Mentors for You
+                </h2>
+                <p className="text-xs text-slate-500">
+                  {subject ? `Top-matched educators teaching ${subject}` : 'High-rated mentors with active upcoming availability'}
+                </p>
+              </div>
+            </div>
+            <span className="self-start sm:self-auto text-[11px] font-semibold text-amber-800 bg-amber-100/70 px-2.5 py-1 rounded-full border border-amber-300/60">
+              Explainable AI Match
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {recommendations.map((recTutor) => (
+              <TutorCard key={`rec-${recTutor.id}`} tutor={recTutor} />
+            ))}
+          </div>
+        </section>
+      )}
+
       {!loading && !error && tutors.length > 0 && (
         <>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-600">
+              {hasFilters ? 'Filtered Mentors' : 'All Verified Mentors'} ({total})
+            </h2>
+          </div>
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             {tutors.map((tutor) => (
               <TutorCard key={tutor.id} tutor={tutor} />

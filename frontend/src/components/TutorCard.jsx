@@ -51,6 +51,20 @@ const TutorCard = ({ tutor }) => {
             {bio}
           </p>
 
+          {tutor.reasons && tutor.reasons.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {tutor.reasons.slice(0, 2).map((r, i) => (
+                <span
+                  key={i}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200/80 shadow-xs"
+                >
+                  <span>✨</span>
+                  <span>{r}</span>
+                </span>
+              ))}
+            </div>
+          )}
+
           <div className="flex flex-wrap gap-1.5 mt-3.5">
             {subjects.map((s) => (
               <span

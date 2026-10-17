@@ -57,3 +57,19 @@ export const updateTutorProfile = async (data) => {
   const response = await api.put('/tutors/profile/me', data)
   return response.data.data
 }
+
+/**
+ * Fetch explainable tutor recommendations based on real database records.
+ * @param {Object} params - { subject, mode, limit }
+ * @returns {Promise<Array>} List of recommended tutor profiles with match reasons
+ */
+export const fetchTutorRecommendations = async (params = {}) => {
+  const queryParams = new URLSearchParams()
+  if (params.subject) queryParams.append('subject', params.subject)
+  if (params.mode) queryParams.append('mode', params.mode)
+  if (params.limit) queryParams.append('limit', params.limit)
+
+  const url = `/tutors/recommendations${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
+  const response = await api.get(url)
+  return response.data?.data?.recommendations || []
+}

@@ -1,0 +1,11 @@
+# Backend Git Ignore
+.env
+*.env
+.env.*
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.log
+data/
+.pytest_cache/

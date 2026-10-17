@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
+import LoadingSpinner from '../components/ui/LoadingSpinner'
 
 const SUBJECTS = ['Mathematics', 'Physics', 'Computer Science', 'Chemistry', 'English', 'Biology', 'Economics', 'Statistics']
 
@@ -17,8 +19,14 @@ const validate = (fields) => {
 
 const Register = () => {
   const navigate = useNavigate()
+  const { register } = useAuth()
+
   const [step, setStep] = useState(1) // 1 = role select, 2 = details form
   const [submitted, setSubmitted] = useState(false)
+  const [registeredUser, setRegisteredUser] = useState(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [apiError, setApiError] = useState(null)
+
   const [fields, setFields] = useState({
     name: '',
     email: '',
@@ -31,7 +39,11 @@ const Register = () => {
   })
   const [errors, setErrors] = useState({})
 
-  const set = (k) => (e) => setFields((f) => ({ ...f, [k]: e.target.value }))
+  const set = (k) => (e) => {
+    setFields((f) => ({ ...f, [k]: e.target.value }))
+    if (errors[k]) setErrors((prev) => ({ ...prev, [k]: null }))
+    if (apiError) setApiError(null)
+  }
 
   const toggleSubject = (s) => {
     setFields((f) => ({
@@ -45,34 +57,68 @@ const Register = () => {
     setStep(2)
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     const errs = validate(fields)
     setErrors(errs)
     if (Object.keys(errs).length > 0) return
-    setSubmitted(true)
+
+    setIsSubmitting(true)
+    setApiError(null)
+
+    try {
+      const payload = {
+        name: fields.name.trim(),
+        email: fields.email.trim(),
+        password: fields.password,
+        role: fields.role.toUpperCase(),
+        university: fields.university.trim(),
+        subjects: fields.subjects,
+        bio: fields.bio.trim(),
+      }
+      const user = await register(payload)
+      setRegisteredUser(user)
+      setSubmitted(true)
+    } catch (err) {
+      console.error('Registration failed:', err)
+      const msg = err.response?.data?.message || 'Registration failed. Please review your details and try again.'
+      setApiError(msg)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   if (submitted) {
+    const isTutor = (registeredUser?.role || fields.role)?.toUpperCase() === 'TUTOR'
+    const dashboardPath = isTutor ? '/tutor-dashboard' : '/student-dashboard'
+
     return (
       <div className="min-h-[calc(100vh-64px)] bg-brand-bg flex items-center justify-center px-4 py-12">
         <div className="card bg-white/95 max-w-md w-full text-center py-10 px-8 shadow-2xl border-slate-200/80">
           <div className="w-16 h-16 rounded-3xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-3xl mx-auto mb-4 border border-emerald-200/80 shadow-inner">
             🎉
           </div>
-          <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight mb-2">You&apos;re almost there!</h2>
-          <p className="text-slate-500 text-sm mb-4 leading-relaxed">
-            Your registration details have been validated successfully.
+          <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight mb-2">
+            Welcome, {registeredUser?.name || fields.name}!
+          </h2>
+          <p className="text-slate-500 text-sm mb-6 leading-relaxed">
+            Your {isTutor ? 'educator / tutor' : 'student'} account has been created and securely authenticated.
           </p>
-          <div className="bg-amber-50/80 border border-amber-200/80 rounded-2xl p-3.5 mb-6 text-xs text-amber-800 text-left flex items-start gap-2.5">
-            <span className="text-base">⚠️</span>
-            <div>
-              <strong>UI Preview Mode:</strong> The backend MongoDB registration endpoint is not yet wired to this form. No database record has been saved.
-            </div>
+
+          <div className="space-y-3">
+            <button
+              onClick={() => navigate(dashboardPath)}
+              className="btn-primary w-full justify-center py-3 font-bold shadow-lg shadow-primary-600/25"
+            >
+              Go to Your Dashboard →
+            </button>
+            <button
+              onClick={() => navigate('/tutors')}
+              className="btn-secondary w-full justify-center py-2.5 font-bold text-xs"
+            >
+              Browse Peer Tutor Directory
+            </button>
           </div>
-          <button onClick={() => navigate('/login')} className="btn-primary w-full justify-center py-3 font-bold">
-            Proceed to Login Portal
-          </button>
         </div>
       </div>
     )
@@ -95,7 +141,7 @@ const Register = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {[
                 { role: 'student', icon: '📚', title: "I'm a Student", desc: 'Find peer tutors and book personalized sessions to master difficult coursework.' },
-                { role: 'tutor',   icon: '🎓', title: "I'm a Tutor",   desc: 'Share your subject expertise, set your hourly rates, and mentor peers.' },
+                { role: 'tutor',   icon: '🎓', title: "I'm a Tutor",   desc: 'Share your subject expertise, set your schedule, and mentor peers.' },
               ].map(({ role, icon, title, desc }) => (
                 <button
                   key={role}
@@ -128,8 +174,9 @@ const Register = () => {
           <div className="card bg-white/95 border-slate-200/80 shadow-2xl p-8">
             <button
               type="button"
+              disabled={isSubmitting}
               onClick={() => setStep(1)}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 mb-6 transition-colors"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 mb-6 transition-colors disabled:opacity-50"
             >
               ← Back to role selection
             </button>
@@ -144,15 +191,22 @@ const Register = () => {
               </div>
             </div>
 
-            <div className="bg-amber-50/80 border border-amber-200/80 rounded-2xl p-3 mb-5 text-xs text-amber-800">
-              ⚠️ <strong>UI Preview Mode:</strong> Form validation is active. Backend registration is in progress.
-            </div>
+            {/* API Error Message */}
+            {apiError && (
+              <div className="bg-rose-50 border border-rose-200/80 rounded-2xl p-3.5 mb-5 text-xs text-rose-800 flex items-start gap-2.5">
+                <span className="text-base leading-none">⚠️</span>
+                <div>
+                  <strong>Registration error:</strong> {apiError}
+                </div>
+              </div>
+            )}
 
             <form onSubmit={handleSubmit} noValidate className="space-y-4">
               <div>
                 <label className="label">Full Name</label>
                 <input
                   type="text"
+                  disabled={isSubmitting}
                   className={`input ${errors.name ? 'input-error' : ''}`}
                   placeholder="Aditya Berad"
                   value={fields.name}
@@ -165,6 +219,7 @@ const Register = () => {
                 <label className="label">Email Address</label>
                 <input
                   type="email"
+                  disabled={isSubmitting}
                   className={`input ${errors.email ? 'input-error' : ''}`}
                   placeholder="aditya@university.edu"
                   value={fields.email}
@@ -178,6 +233,7 @@ const Register = () => {
                   <label className="label">Password</label>
                   <input
                     type="password"
+                    disabled={isSubmitting}
                     className={`input ${errors.password ? 'input-error' : ''}`}
                     placeholder="Min 8 chars"
                     value={fields.password}
@@ -189,6 +245,7 @@ const Register = () => {
                   <label className="label">Confirm Password</label>
                   <input
                     type="password"
+                    disabled={isSubmitting}
                     className={`input ${errors.confirm ? 'input-error' : ''}`}
                     placeholder="Repeat password"
                     value={fields.confirm}
@@ -202,6 +259,7 @@ const Register = () => {
                 <label className="label">University / Academic Institution</label>
                 <input
                   type="text"
+                  disabled={isSubmitting}
                   className="input"
                   placeholder="e.g. Mumbai University"
                   value={fields.university}
@@ -218,6 +276,7 @@ const Register = () => {
                     <button
                       key={s}
                       type="button"
+                      disabled={isSubmitting}
                       onClick={() => toggleSubject(s)}
                       className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
                         fields.subjects.includes(s)
@@ -235,6 +294,7 @@ const Register = () => {
                 <div>
                   <label className="label">Academic Bio &amp; Teaching Experience</label>
                   <textarea
+                    disabled={isSubmitting}
                     className="input h-24 resize-none"
                     placeholder="Describe your academic background, achievements, and teaching methodology…"
                     value={fields.bio}
@@ -243,8 +303,19 @@ const Register = () => {
                 </div>
               )}
 
-              <button type="submit" className="btn-primary w-full justify-center py-3.5 font-bold shadow-lg shadow-primary-600/25 mt-2">
-                Create Account
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="btn-primary w-full justify-center py-3.5 font-bold shadow-lg shadow-primary-600/25 mt-2 disabled:opacity-50"
+              >
+                {isSubmitting ? (
+                  <span className="flex items-center gap-2">
+                    <LoadingSpinner size="sm" />
+                    <span>Creating your account…</span>
+                  </span>
+                ) : (
+                  'Create Account'
+                )}
               </button>
             </form>
 

@@ -286,3 +286,31 @@ def test_get_tutor_details_by_id(client, tutor_token):
     # Non-existent ID
     bad_resp = client.get("/api/tutors/64b1f2000000000000000000")
     assert bad_resp.status_code == 404
+
+
+def test_get_tutor_recommendations(client, tutor_token):
+    token, _ = tutor_token
+    client.post(
+        "/api/tutors/profile",
+        json={
+            "subjects": ["Data Structures", "Algorithms"],
+            "introduction": "DSA mentor with high availability",
+            "teaching_modes": ["ONLINE", "ON_CAMPUS"],
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    # 1. Fetch general recommendations
+    rec_res = client.get("/api/tutors/recommendations")
+    assert rec_res.status_code == 200
+    rec_data = rec_res.get_json()["data"]
+    assert "recommendations" in rec_data
+    assert len(rec_data["recommendations"]) >= 1
+
+    # 2. Fetch subject-filtered recommendation
+    dsa_res = client.get("/api/tutors/recommendations?subject=Data Structures")
+    assert dsa_res.status_code == 200
+    dsa_tutors = dsa_res.get_json()["data"]["recommendations"]
+    assert len(dsa_tutors) >= 1
+    assert any("Data Structures" in t.get("reasons", [""])[0] for t in dsa_tutors)
+

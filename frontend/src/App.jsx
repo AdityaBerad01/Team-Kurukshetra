@@ -1,5 +1,6 @@
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
+import RoleRoute from './components/RoleRoute'
 
 // Layouts
 import Layout          from './layouts/Layout'
@@ -39,9 +40,30 @@ const router = createBrowserRouter([
   {
     element: <DashboardLayout />,
     children: [
-      { path: '/student-dashboard',   element: <StudentDashboard />   },
-      { path: '/tutor-dashboard',     element: <TutorDashboard />     },
-      { path: '/manage-availability', element: <ManageAvailability /> },
+      {
+        path: '/student-dashboard',
+        element: (
+          <RoleRoute allowedRoles={['STUDENT']} fallback="/tutor-dashboard">
+            <StudentDashboard />
+          </RoleRoute>
+        ),
+      },
+      {
+        path: '/tutor-dashboard',
+        element: (
+          <RoleRoute allowedRoles={['TUTOR']} fallback="/student-dashboard">
+            <TutorDashboard />
+          </RoleRoute>
+        ),
+      },
+      {
+        path: '/manage-availability',
+        element: (
+          <RoleRoute allowedRoles={['TUTOR']} fallback="/student-dashboard">
+            <ManageAvailability />
+          </RoleRoute>
+        ),
+      },
       { path: '/my-requests',         element: <MySessionRequests />  },
       { path: '/profile',             element: <ProfileSettings />    },
     ],

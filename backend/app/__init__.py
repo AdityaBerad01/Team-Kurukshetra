@@ -1,14 +1,36 @@
 """
 Application factory for PeerConnect Flask backend.
+Configured for development and production WSGI deployments.
 """
+import logging
 import os
+from urllib.parse import urlparse, urlunparse
+from dotenv import load_dotenv
 from flask import Flask
 from flask_cors import CORS
-from flask_jwt_extended import JWTManager
-from dotenv import load_dotenv
 
 from app.extensions import mongo, jwt
 from app.routes.health import health_bp
+
+
+def init_db_indexes(app: Flask):
+    """Ensure essential collection indexes are present on startup."""
+    with app.app_context():
+        try:
+            mongo.db.users.create_index("email", unique=True)
+            mongo.db.tutor_profiles.create_index("user_id", unique=True)
+            mongo.db.tutor_profiles.create_index("subjects")
+            mongo.db.tutor_profiles.create_index("teaching_modes")
+            mongo.db.availability.create_index([("tutor_id", 1), ("date", 1), ("status", 1)])
+            mongo.db.availability.create_index([("status", 1), ("date", 1)])
+            mongo.db.session_requests.create_index([("student_id", 1), ("created_at", -1)])
+            mongo.db.session_requests.create_index([("tutor_id", 1), ("status", 1)])
+            mongo.db.session_requests.create_index([("slot_id", 1), ("status", 1)])
+            mongo.db.reviews.create_index([("request_id", 1)], unique=True)
+            mongo.db.reviews.create_index([("tutor_id", 1), ("created_at", -1)])
+            mongo.db.reviews.create_index([("student_id", 1), ("created_at", -1)])
+        except Exception as e:
+            app.logger.warning("MongoDB index initialization note: %s", e)
 
 
 def create_app(config_overrides: dict | None = None) -> Flask:
@@ -20,26 +42,53 @@ def create_app(config_overrides: dict | None = None) -> Flask:
     app = Flask(__name__)
 
     # ------------------------------------------------------------------ #
-    #  Core configuration                                                  #
+    #  Core configuration & Production defaults                          #
     # ------------------------------------------------------------------ #
+    is_debug = os.environ.get("FLASK_DEBUG", "0").lower() in ("1", "true")
+    flask_env = os.environ.get("FLASK_ENV", "production" if not is_debug else "development")
+
+    app.config["ENV"] = flask_env
+    app.config["DEBUG"] = is_debug
     app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-change-me")
     app.config["JWT_SECRET_KEY"] = os.environ.get("JWT_SECRET_KEY", "dev-jwt-change-me")
-    app.config["MONGO_URI"] = os.environ.get("MONGO_URI", "mongodb://127.0.0.1:27017/peerconnect")
+
+    # Logging setup
+    log_level = logging.DEBUG if is_debug else logging.INFO
+    logging.basicConfig(
+        level=log_level,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    )
+
+    # MongoDB URI and optional explicit database name override
+    mongo_uri = os.environ.get("MONGO_URI", "mongodb://127.0.0.1:27017/peerconnect")
+    db_name = os.environ.get("MONGO_DB_NAME")
+    if db_name:
+        try:
+            parsed = urlparse(mongo_uri)
+            new_path = f"/{db_name.strip('/')}"
+            mongo_uri = urlunparse((parsed.scheme, parsed.netloc, new_path, parsed.params, parsed.query, parsed.fragment))
+        except Exception as e:
+            app.logger.warning("Could not apply MONGO_DB_NAME to MONGO_URI: %s", e)
+    app.config["MONGO_URI"] = mongo_uri
 
     if config_overrides:
         app.config.update(config_overrides)
 
     # ------------------------------------------------------------------ #
-    #  Extensions                                                          #
+    #  Extensions & CORS                                                 #
     # ------------------------------------------------------------------ #
-    # CORS – allow only the configured frontend origin
-    frontend_origin = os.environ.get("FRONTEND_ORIGIN", "http://localhost:5173")
-    CORS(app, resources={r"/api/*": {"origins": frontend_origin}})
+    # CORS – allow configured frontend origins (supports comma-separated list)
+    raw_origins = os.environ.get("FRONTEND_ORIGIN", "http://localhost:5173,http://127.0.0.1:5173")
+    frontend_origins = [o.strip() for o in raw_origins.split(",") if o.strip()]
+    CORS(app, resources={r"/api/*": {"origins": frontend_origins}})
 
     jwt.init_app(app)
 
     # MongoDB via PyMongo
     mongo.init_app(app)
+
+    # Initialize collection indexes
+    init_db_indexes(app)
 
     # ------------------------------------------------------------------ #
     #  Blueprints                                                          #
@@ -57,5 +106,23 @@ def create_app(config_overrides: dict | None = None) -> Flask:
     app.register_blueprint(reviews_bp, url_prefix="/api")
     from app.routes.dashboard import dashboard_bp
     app.register_blueprint(dashboard_bp, url_prefix="/api/dashboard")
+
+    # ------------------------------------------------------------------ #
+    #  Global Error Handlers                                               #
+    # ------------------------------------------------------------------ #
+    from app.utils.responses import error_response
+
+    @app.errorhandler(404)
+    def handle_404(e):
+        return error_response(message="Resource not found.", status_code=404)
+
+    @app.errorhandler(405)
+    def handle_405(e):
+        return error_response(message="Method not allowed.", status_code=405)
+
+    @app.errorhandler(500)
+    def handle_500(e):
+        app.logger.error("Internal Server Error: %s", e)
+        return error_response(message="An internal server error occurred.", status_code=500)
 
     return app

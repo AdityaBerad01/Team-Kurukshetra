@@ -15,6 +15,9 @@ def register():
     email = data.get('email', '').strip()
     password = data.get('password', '')
     role = data.get('role', '').strip().upper()
+    university = data.get('university', '').strip()
+    subjects = data.get('subjects', [])
+    bio = data.get('bio', '').strip()
 
     # Basic validation
     errors = {}
@@ -35,9 +38,35 @@ def register():
         return error_response(message='An account with this email already exists.', status_code=409)
 
     password_hash = generate_password_hash(password)
-    user_doc = new_user(name=name, email=email, password_hash=password_hash, role=role)
+    user_doc = new_user(
+        name=name,
+        email=email,
+        password_hash=password_hash,
+        role=role,
+        university=university,
+        subjects=subjects if isinstance(subjects, list) else [],
+        bio=bio,
+    )
     insert_result = mongo.db.users.insert_one(user_doc)
+    user_id_str = str(insert_result.inserted_id)
+
+    # If tutor registered with subjects, automatically create initial tutor profile
+    if role == 'TUTOR' and isinstance(subjects, list) and len(subjects) > 0:
+        from app.models.tutor_profile import new_tutor_profile
+        tutor_doc = new_tutor_profile(
+            user_id=user_id_str,
+            subjects=subjects,
+            introduction=bio,
+            department=data.get('department', ''),
+            year_of_study=str(data.get('year_of_study', '')),
+            teaching_modes=['ONLINE'],
+            hourly_rate=data.get('hourly_rate', 300),
+        )
+        mongo.db.tutor_profiles.insert_one(tutor_doc)
+
     safe_user = to_safe_user(mongo.db.users.find_one({"_id": insert_result.inserted_id}))
+    access_token = create_access_token(identity=user_id_str)
+    safe_user['access_token'] = access_token
     return success_response(data=safe_user, message='Registration successful', status_code=201)
 
 @auth_bp.route('/login', methods=['POST'])

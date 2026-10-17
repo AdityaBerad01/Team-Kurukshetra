@@ -19,7 +19,8 @@ const Sidebar = () => {
   const { user } = useAuth()
   if (!user) return null
 
-  const links = user.role === 'tutor' ? TUTOR_LINKS : STUDENT_LINKS
+  const isTutor = user?.role?.toUpperCase() === 'TUTOR'
+  const links = isTutor ? TUTOR_LINKS : STUDENT_LINKS
 
   return (
     <aside className="w-64 flex-shrink-0 hidden lg:flex flex-col bg-white/95 border-r border-slate-200/80 min-h-[calc(100vh-64px)] backdrop-blur-sm">
