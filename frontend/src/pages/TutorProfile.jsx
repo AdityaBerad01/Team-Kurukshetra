@@ -244,6 +244,13 @@ const TutorProfile = () => {
                 Login to Schedule Session
               </Link>
             )}
+
+            <Link
+              to={`/portfolio/${tutor.user_id || tutor.id}`}
+              className="btn-secondary w-full justify-center mt-3 py-2.5 text-xs font-bold text-slate-700 hover:text-primary-700 flex items-center gap-1.5 border border-slate-200"
+            >
+              🎓 View Proof-of-Skill Portfolio
+            </Link>
           </div>
 
           {/* Real Available Slots Widget */}

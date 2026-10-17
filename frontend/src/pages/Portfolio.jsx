@@ -1,16 +1,21 @@
 import { useState, useEffect } from 'react'
-import { fetchMyPortfolio, updateMyPortfolio } from '../api/portfolio'
+import { useParams, Link } from 'react-router-dom'
+import { fetchMyPortfolio, updateMyPortfolio, fetchPublicPortfolio } from '../api/portfolio'
 import { useAuth } from '../context/AuthContext'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import Modal from '../components/ui/Modal'
 import Avatar from '../components/ui/Avatar'
 
 const Portfolio = () => {
+  const { id } = useParams()
   const { user } = useAuth()
   const [portfolio, setPortfolio] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [saving, setSaving] = useState(false)
   const [saveMsg, setSaveMsg] = useState(null)
+
+  const isOwnProfile = !id || id === 'me' || (user && (user.id === id || user._id === id))
 
   // Edit header modal
   const [headerModal, setHeaderModal] = useState(false)
@@ -33,21 +38,28 @@ const Portfolio = () => {
 
   useEffect(() => {
     let isMounted = true
-    fetchMyPortfolio()
-      .then((data) => {
+
+    const loadData = async () => {
+      try {
+        const data = isOwnProfile ? await fetchMyPortfolio() : await fetchPublicPortfolio(id)
         if (!isMounted) return
         setPortfolio(data)
         setHeadline(data.headline || '')
         setBioSummary(data.bio_summary || '')
         setIsPublic(data.is_public ?? true)
-      })
-      .catch((err) => console.error('Failed to load portfolio:', err))
-      .finally(() => {
+        setError(null)
+      } catch (err) {
+        if (!isMounted) return
+        console.error('Failed to load portfolio:', err)
+        setError(err.response?.data?.message || 'Failed to load portfolio details.')
+      } finally {
         if (isMounted) setLoading(false)
-      })
+      }
+    }
 
+    loadData()
     return () => { isMounted = false }
-  }, [])
+  }, [id, isOwnProfile])
 
   const handleSaveHeader = async (e) => {
     e.preventDefault()
@@ -149,6 +161,24 @@ const Portfolio = () => {
     )
   }
 
+  if (error) {
+    return (
+      <div className="card bg-white p-12 text-center max-w-lg mx-auto my-12 border-slate-200 shadow-sm">
+        <span className="text-4xl block mb-3">🔒</span>
+        <h2 className="text-lg font-bold text-slate-800">Portfolio Unavailable</h2>
+        <p className="text-sm text-slate-500 mt-1 mb-6">{error}</p>
+        <div className="flex justify-center gap-3">
+          <Link to="/tutors" className="btn-primary text-xs py-2 px-4">
+            Browse Peer Tutors
+          </Link>
+          <Link to="/" className="btn-secondary text-xs py-2 px-4">
+            Back to Home
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
   const {
     user_name = user?.name || 'Peer Scholar',
     user_role = user?.role || 'STUDENT',
@@ -181,22 +211,33 @@ const Portfolio = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setHeaderModal(true)}
-              className="px-4 py-2 rounded-xl text-xs font-bold bg-white/15 text-white hover:bg-white/25 border border-white/20 transition-all"
-            >
-              ✎ Edit Header &amp; Bio
-            </button>
-            <button
-              type="button"
-              onClick={() => setProjectModal(true)}
-              className="btn-primary text-xs py-2 px-4 shadow-lg shadow-black/20"
-            >
-              + Add Project
-            </button>
-          </div>
+          {isOwnProfile ? (
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setHeaderModal(true)}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-white/15 text-white hover:bg-white/25 border border-white/20 transition-all"
+              >
+                ✎ Edit Header &amp; Bio
+              </button>
+              <button
+                type="button"
+                onClick={() => setProjectModal(true)}
+                className="btn-primary text-xs py-2 px-4 shadow-lg shadow-black/20"
+              >
+                + Add Project
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Link
+                to="/tutors"
+                className="px-3.5 py-2 rounded-xl text-xs font-bold bg-white/15 text-white hover:bg-white/25 border border-white/20 transition-all flex items-center gap-1.5"
+              >
+                ← Find Tutors
+              </Link>
+            </div>
+          )}
         </div>
 
         {bioSummary && (
@@ -264,13 +305,15 @@ const Portfolio = () => {
               Demonstrate hands-on coursework applications, repositories, and study tools
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setProjectModal(true)}
-            className="btn-secondary py-1.5 px-3 text-xs font-bold"
-          >
-            + New Project
-          </button>
+          {isOwnProfile && (
+            <button
+              type="button"
+              onClick={() => setProjectModal(true)}
+              className="btn-secondary py-1.5 px-3 text-xs font-bold"
+            >
+              + New Project
+            </button>
+          )}
         </div>
 
         {projects.length === 0 ? (
@@ -286,14 +329,16 @@ const Portfolio = () => {
                 <div className="space-y-1.5">
                   <div className="flex items-start justify-between">
                     <h3 className="font-bold text-sm text-slate-900">{proj.title}</h3>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteProject(proj.id)}
-                      className="text-slate-400 hover:text-rose-600 text-xs"
-                      title="Delete project"
-                    >
-                      ✕
-                    </button>
+                    {isOwnProfile && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteProject(proj.id)}
+                        className="text-slate-400 hover:text-rose-600 text-xs"
+                        title="Delete project"
+                      >
+                        ✕
+                      </button>
+                    )}
                   </div>
                   <p className="text-xs text-slate-600 leading-relaxed">{proj.description}</p>
                   {proj.skills && proj.skills.length > 0 && (
@@ -347,30 +392,34 @@ const Portfolio = () => {
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-primary-50 text-primary-800 border border-primary-200/60 shadow-xs"
             >
               <span>{skill}</span>
-              <button
-                type="button"
-                onClick={() => handleRemoveSkill(skill)}
-                className="text-primary-400 hover:text-rose-600 font-bold ml-1"
-              >
-                ×
-              </button>
+              {isOwnProfile && (
+                <button
+                  type="button"
+                  onClick={() => handleRemoveSkill(skill)}
+                  className="text-primary-400 hover:text-rose-600 font-bold ml-1"
+                >
+                  ×
+                </button>
+              )}
             </span>
           ))}
         </div>
 
         {/* Add Skill Input */}
-        <form onSubmit={handleAddSkill} className="flex gap-2 max-w-sm pt-2">
-          <input
-            type="text"
-            value={newSkill}
-            onChange={(e) => setNewSkill(e.target.value)}
-            placeholder="Add new skill (e.g. Graph Algorithms)…"
-            className="input-field text-xs flex-1"
-          />
-          <button type="submit" className="btn-secondary text-xs px-3 font-bold">
-            + Add
-          </button>
-        </form>
+        {isOwnProfile && (
+          <form onSubmit={handleAddSkill} className="flex gap-2 max-w-sm pt-2">
+            <input
+              type="text"
+              value={newSkill}
+              onChange={(e) => setNewSkill(e.target.value)}
+              placeholder="Add new skill (e.g. Graph Algorithms)…"
+              className="input-field text-xs flex-1"
+            />
+            <button type="submit" className="btn-secondary text-xs px-3 font-bold">
+              + Add
+            </button>
+          </form>
+        )}
       </div>
 
       {/* Edit Header Modal */}

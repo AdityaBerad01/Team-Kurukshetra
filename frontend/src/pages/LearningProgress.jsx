@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react'
-import { fetchMyAssessments, fetchProgressSummary, submitAssessment } from '../api/assessments'
+import { fetchMyAssessments, fetchProgressSummary, submitAssessment, createAssessment } from '../api/assessments'
+import { useAuth } from '../context/AuthContext'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import Modal from '../components/ui/Modal'
 
 const LearningProgress = () => {
+  const { user } = useAuth()
+  const isTutor = user?.role?.toUpperCase() === 'TUTOR'
+
   const [progress, setProgress] = useState(null)
   const [assessments, setAssessments] = useState([])
   const [loading, setLoading] = useState(true)
@@ -12,6 +16,20 @@ const LearningProgress = () => {
   const [submitting, setSubmitting] = useState(false)
   const [quizResult, setQuizResult] = useState(null)
   const [error, setError] = useState(null)
+
+  // Authoring modal state for tutors
+  const [authorModal, setAuthorModal] = useState(false)
+  const [authorForm, setAuthorForm] = useState({
+    title: '',
+    subject: 'Mathematics',
+    student_id: 'ALL',
+    assessment_type: 'PRE_SESSION',
+  })
+  const [authorQuestions, setAuthorQuestions] = useState([
+    { question: '', options: ['', '', '', ''], correct_index: 0, explanation: '' },
+  ])
+  const [authorSaving, setAuthorSaving] = useState(false)
+  const [authorError, setAuthorError] = useState(null)
 
   const [refreshTrigger, setRefreshTrigger] = useState(0)
 
@@ -58,6 +76,89 @@ const LearningProgress = () => {
       alert(err.response?.data?.message || 'Failed to submit quiz. Please try again.')
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handleAddQuestion = () => {
+    setAuthorQuestions((prev) => [
+      ...prev,
+      { question: '', options: ['', '', '', ''], correct_index: 0, explanation: '' },
+    ])
+  }
+
+  const handleRemoveQuestion = (idx) => {
+    if (authorQuestions.length <= 1) return
+    setAuthorQuestions((prev) => prev.filter((_, i) => i !== idx))
+  }
+
+  const handleUpdateQuestion = (idx, field, value) => {
+    setAuthorQuestions((prev) => {
+      const copy = [...prev]
+      copy[idx] = { ...copy[idx], [field]: value }
+      return copy
+    })
+  }
+
+  const handleUpdateOption = (qIdx, optIdx, val) => {
+    setAuthorQuestions((prev) => {
+      const copy = [...prev]
+      const newOpts = [...copy[qIdx].options]
+      newOpts[optIdx] = val
+      copy[qIdx] = { ...copy[qIdx], options: newOpts }
+      return copy
+    })
+  }
+
+  const handleCreateAssessment = async (e) => {
+    e.preventDefault()
+    setAuthorError(null)
+
+    if (!authorForm.title.trim()) {
+      setAuthorError('Please enter an assessment title.')
+      return
+    }
+    if (!authorForm.subject.trim()) {
+      setAuthorError('Please specify the subject.')
+      return
+    }
+
+    for (let i = 0; i < authorQuestions.length; i++) {
+      const q = authorQuestions[i]
+      if (!q.question.trim()) {
+        setAuthorError(`Question ${i + 1} text cannot be empty.`)
+        return
+      }
+      if (q.options.some((opt) => !opt.trim())) {
+        setAuthorError(`Question ${i + 1} must have all 4 options filled out.`)
+        return
+      }
+    }
+
+    setAuthorSaving(true)
+    try {
+      const payload = {
+        title: authorForm.title.trim(),
+        subject: authorForm.subject.trim(),
+        student_id: authorForm.student_id.trim() || 'ALL',
+        assessment_type: authorForm.assessment_type,
+        questions: authorQuestions.map((q, idx) => ({
+          id: `q${idx + 1}`,
+          question: q.question.trim(),
+          options: q.options.map((opt) => opt.trim()),
+          correct_index: Number(q.correct_index),
+          explanation: q.explanation.trim(),
+        })),
+      }
+      await createAssessment(payload)
+      setAuthorModal(false)
+      setAuthorForm({ title: '', subject: 'Mathematics', student_id: 'ALL', assessment_type: 'PRE_SESSION' })
+      setAuthorQuestions([{ question: '', options: ['', '', '', ''], correct_index: 0, explanation: '' }])
+      setRefreshTrigger((k) => k + 1)
+    } catch (err) {
+      console.error('Failed to author assessment:', err)
+      setAuthorError(err.response?.data?.message || 'Failed to create assessment.')
+    } finally {
+      setAuthorSaving(false)
     }
   }
 
@@ -208,12 +309,21 @@ const LearningProgress = () => {
         <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
           <div>
             <h2 className="text-lg font-bold text-slate-900 tracking-tight">
-              Assigned & Completed Assessments
+              Assigned &amp; Completed Assessments
             </h2>
             <p className="text-xs text-slate-500">
               Diagnostic evaluations authored by peer mentors for specific coursework goals.
             </p>
           </div>
+          {isTutor && (
+            <button
+              type="button"
+              onClick={() => { setAuthorModal(true); setAuthorError(null) }}
+              className="btn-primary text-xs py-2 px-3.5 flex items-center gap-1.5 shadow-sm"
+            >
+              + Author Assessment
+            </button>
+          )}
         </div>
 
         {assessments.length === 0 ? (
@@ -366,6 +476,179 @@ const LearningProgress = () => {
               </div>
             )}
           </div>
+        </Modal>
+      )}
+
+      {/* Author Assessment Modal */}
+      {authorModal && (
+        <Modal
+          isOpen={authorModal}
+          onClose={() => setAuthorModal(false)}
+          title="Author Diagnostic / Evaluation Assessment"
+        >
+          <form onSubmit={handleCreateAssessment} className="space-y-5 max-h-[75vh] overflow-y-auto px-1">
+            {authorError && (
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 font-semibold">
+                ⚠ {authorError}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Assessment Title</label>
+                <input
+                  type="text"
+                  value={authorForm.title}
+                  onChange={(e) => setAuthorForm({ ...authorForm, title: e.target.value })}
+                  placeholder="e.g. Calculus Derivatives Diagnostic"
+                  className="input-field text-xs"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Subject</label>
+                <input
+                  type="text"
+                  value={authorForm.subject}
+                  onChange={(e) => setAuthorForm({ ...authorForm, subject: e.target.value })}
+                  placeholder="e.g. Mathematics, Computer Science"
+                  className="input-field text-xs"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Target Audience</label>
+                <select
+                  value={authorForm.student_id}
+                  onChange={(e) => setAuthorForm({ ...authorForm, student_id: e.target.value })}
+                  className="input-field text-xs font-medium"
+                >
+                  <option value="ALL">Open to All Campus Scholars (Diagnostic)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Assessment Type</label>
+                <select
+                  value={authorForm.assessment_type}
+                  onChange={(e) => setAuthorForm({ ...authorForm, assessment_type: e.target.value })}
+                  className="input-field text-xs font-medium"
+                >
+                  <option value="PRE_SESSION">Pre-Session Diagnostic</option>
+                  <option value="POST_SESSION">Post-Session Evaluation</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-4 pt-2 border-t border-slate-100">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold uppercase tracking-wider text-slate-500">
+                  Questions ({authorQuestions.length})
+                </span>
+                <button
+                  type="button"
+                  onClick={handleAddQuestion}
+                  className="text-xs font-bold text-primary-700 hover:text-primary-800"
+                >
+                  + Add Question
+                </button>
+              </div>
+
+              {authorQuestions.map((q, qIdx) => (
+                <div key={qIdx} className="p-4 rounded-xl border border-slate-200/80 bg-slate-50 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-700">Question {qIdx + 1}</span>
+                    {authorQuestions.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveQuestion(qIdx)}
+                        className="text-rose-500 hover:text-rose-700 text-xs font-bold"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+
+                  <input
+                    type="text"
+                    value={q.question}
+                    onChange={(e) => handleUpdateQuestion(qIdx, 'question', e.target.value)}
+                    placeholder="Enter question prompt…"
+                    className="input-field text-xs bg-white"
+                    required
+                  />
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                    {q.options.map((opt, optIdx) => (
+                      <div key={optIdx} className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-slate-500 w-4">
+                          {String.fromCharCode(65 + optIdx)}.
+                        </span>
+                        <input
+                          type="text"
+                          value={opt}
+                          onChange={(e) => handleUpdateOption(qIdx, optIdx, e.target.value)}
+                          placeholder={`Option ${String.fromCharCode(65 + optIdx)}`}
+                          className="input-field text-xs bg-white flex-1"
+                          required
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                        Correct Answer Choice
+                      </label>
+                      <select
+                        value={q.correct_index}
+                        onChange={(e) => handleUpdateQuestion(qIdx, 'correct_index', Number(e.target.value))}
+                        className="input-field text-xs bg-white"
+                      >
+                        <option value={0}>Option A</option>
+                        <option value={1}>Option B</option>
+                        <option value={2}>Option C</option>
+                        <option value={3}>Option D</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                        Explanation (Shown after completion)
+                      </label>
+                      <input
+                        type="text"
+                        value={q.explanation}
+                        onChange={(e) => handleUpdateQuestion(qIdx, 'explanation', e.target.value)}
+                        placeholder="Why is this answer correct?"
+                        className="input-field text-xs bg-white"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="pt-4 border-t border-slate-100 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setAuthorModal(false)}
+                className="btn-secondary text-xs"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={authorSaving}
+                className="btn-primary text-xs py-2 px-5"
+              >
+                {authorSaving ? 'Saving Assessment…' : 'Publish Assessment'}
+              </button>
+            </div>
+          </form>
         </Modal>
       )}
     </div>

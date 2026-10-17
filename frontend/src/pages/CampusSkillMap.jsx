@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { fetchCampusSkillMap } from '../api/skillMap'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 
@@ -138,17 +139,23 @@ const CampusSkillMap = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 pt-1">
             {high_opportunity_subjects.map((sub, idx) => (
-              <div key={idx} className="p-3.5 rounded-xl bg-white border border-amber-200 shadow-xs space-y-1">
+              <div key={idx} className="p-3.5 rounded-xl bg-white border border-amber-200 shadow-xs space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-sm text-slate-900">{sub.subject}</span>
                   <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-rose-100 text-rose-800">
                     Gap: +{sub.gap}
                   </span>
                 </div>
-                <div className="flex justify-between text-xs text-slate-500 pt-1">
+                <div className="flex justify-between text-xs text-slate-500">
                   <span>Demand: <strong>{sub.demand_count}</strong> requests</span>
                   <span>Supply: <strong>{sub.supply_count}</strong> tutors</span>
                 </div>
+                <Link
+                  to={`/tutors?subject=${encodeURIComponent(sub.subject)}`}
+                  className="btn-secondary py-1 px-2.5 text-[11px] font-bold w-full justify-center flex items-center gap-1 mt-1 text-slate-700 hover:text-primary-700"
+                >
+                  Find Tutors for {sub.subject} →
+                </Link>
               </div>
             ))}
           </div>
@@ -186,6 +193,12 @@ const CampusSkillMap = () => {
                   <div className="flex items-center gap-4 text-xs font-semibold text-slate-600">
                     <span>👨‍🏫 Tutors: <strong className="text-slate-900">{item.tutors_available}</strong></span>
                     <span>📝 Inquiries: <strong className="text-primary-700">{item.student_requests}</strong></span>
+                    <Link
+                      to={`/tutors?subject=${encodeURIComponent(item.subject)}`}
+                      className="text-xs font-bold text-primary-700 hover:text-primary-800 hover:underline flex items-center gap-0.5"
+                    >
+                      Find Tutors →
+                    </Link>
                   </div>
                 </div>
 

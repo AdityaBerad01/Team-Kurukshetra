@@ -57,8 +57,10 @@ def _compute_verified_achievements(user_id: str) -> List[Dict[str, Any]]:
         "status": "SUBMITTED",
         "score": {"$gte": 80},
     }))
+    quiz_subjects_seen = set()
     for q in high_quizzes:
         sub = q.get("subject", "Academic")
+        quiz_subjects_seen.add(sub)
         score = q.get("score", 100)
         achievements.append({
             "title": f"{sub} Diagnostic Mastery ({score}%)",
@@ -66,6 +68,32 @@ def _compute_verified_achievements(user_id: str) -> List[Dict[str, Any]]:
             "type": "ASSESSMENT_EXCELLENCE",
             "description": f"Scored {score}% on verified peer-evaluated {sub} assessment.",
         })
+
+    # Also check assessment submissions from diagnostic tests
+    try:
+        high_subs = list(mongo.db.assessment_submissions.find({
+            "student_id": u_str,
+            "score": {"$gte": 80},
+        }))
+        for hs in high_subs:
+            aid = hs.get("assessment_id")
+            score = hs.get("score", 100)
+            a_doc = None
+            try:
+                a_doc = mongo.db.assessments.find_one({"_id": ObjectId(aid)})
+            except Exception:
+                pass
+            sub = a_doc.get("subject", "Academic") if a_doc else "Academic"
+            if sub not in quiz_subjects_seen:
+                quiz_subjects_seen.add(sub)
+                achievements.append({
+                    "title": f"{sub} Diagnostic Mastery ({score}%)",
+                    "badge": "🏆",
+                    "type": "ASSESSMENT_EXCELLENCE",
+                    "description": f"Scored {score}% on verified peer diagnostic {sub} assessment.",
+                })
+    except Exception:
+        pass
 
     # 4. Perfect 5-Star Reviews
     reviews_count = mongo.db.reviews.count_documents({"tutor_id": u_str, "rating": 5})
@@ -152,17 +180,35 @@ def update_portfolio(user_id: str, data: Dict[str, Any]) -> Tuple[Optional[Dict]
 def get_public_portfolio(user_id: str) -> Tuple[Optional[Dict], Optional[str], int]:
     """
     Publicly view a scholar's portfolio if marked as public.
+    Accepts either user_id or tutor_profile id for seamless navigation.
     """
-    u_str = str(user_id)
-    doc = mongo.db.portfolios.find_one({"user_id": u_str, "is_public": True})
-    if not doc:
-        return None, "Portfolio not found or set to private.", 404
+    u_str = str(user_id).strip()
+
+    # If an ObjectId belongs to a tutor_profile, resolve its user_id
+    try:
+        tutor_prof = mongo.db.tutor_profiles.find_one({"_id": ObjectId(u_str)})
+        if tutor_prof and tutor_prof.get("user_id"):
+            u_str = str(tutor_prof["user_id"])
+    except Exception:
+        pass
 
     user_doc = None
     try:
-        user_doc = mongo.db.users.find_one({"_id": ObjectId(user_id)})
+        user_doc = mongo.db.users.find_one({"_id": ObjectId(u_str)})
     except Exception:
         pass
+
+    doc = mongo.db.portfolios.find_one({"user_id": u_str})
+    if not doc:
+        if not user_doc:
+            return None, "Portfolio not found.", 404
+        # User exists, initialize default public portfolio
+        doc = new_portfolio(u_str)
+        res = mongo.db.portfolios.insert_one(doc)
+        doc["_id"] = res.inserted_id
+
+    if not doc.get("is_public", True):
+        return None, "This scholar's portfolio is set to private.", 403
 
     achievements = _compute_verified_achievements(u_str)
     return to_public_portfolio(doc, user_doc=user_doc, verified_achievements=achievements), None, 200

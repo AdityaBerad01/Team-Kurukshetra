@@ -119,9 +119,16 @@ def get_tutor_reviews(tutor_id: str) -> Tuple[Optional[Dict], Optional[str], int
         return None, "Tutor ID is required.", 400
 
     tutor_str = str(tutor_id).strip()
+    tutor_ids = [tutor_str]
+    try:
+        prof = mongo.db.tutor_profiles.find_one({"_id": ObjectId(tutor_str)})
+        if prof and prof.get("user_id"):
+            tutor_ids.append(str(prof["user_id"]))
+    except Exception:
+        pass
 
     # Find all reviews for tutor
-    reviews_cursor = mongo.db.reviews.find({"tutor_id": tutor_str}).sort("created_at", -1)
+    reviews_cursor = mongo.db.reviews.find({"tutor_id": {"$in": tutor_ids}}).sort("created_at", -1)
     raw_reviews = list(reviews_cursor)
 
     total_reviews = len(raw_reviews)
@@ -171,7 +178,16 @@ def calculate_tutor_rating(tutor_id: str) -> Tuple[float, int]:
     """
     Calculate average rating and review count directly from stored reviews.
     """
-    reviews = list(mongo.db.reviews.find({"tutor_id": str(tutor_id)}, {"rating": 1}))
+    tutor_str = str(tutor_id).strip()
+    tutor_ids = [tutor_str]
+    try:
+        prof = mongo.db.tutor_profiles.find_one({"_id": ObjectId(tutor_str)})
+        if prof and prof.get("user_id"):
+            tutor_ids.append(str(prof["user_id"]))
+    except Exception:
+        pass
+
+    reviews = list(mongo.db.reviews.find({"tutor_id": {"$in": tutor_ids}}, {"rating": 1}))
     total_reviews = len(reviews)
     if total_reviews == 0:
         return 0.0, 0

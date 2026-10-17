@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import Avatar from './ui/Avatar'
 import Badge from './ui/Badge'
 
@@ -106,6 +107,17 @@ const SessionRequestCard = ({
               Decline
             </button>
           </>
+        )}
+
+        {/* Session Agenda / Planner link for scheduled or completed sessions */}
+        {(normStatus === 'accepted' || normStatus === 'confirmed' || normStatus === 'completed') && (
+          <Link
+            to="/planner"
+            className="px-3 py-1.5 rounded-xl text-xs font-bold bg-primary-50 text-primary-700 hover:bg-primary-100 border border-primary-200/60 shadow-xs transition-all"
+            title="Open collaborative session objectives and agenda"
+          >
+            🎯 Session Agenda
+          </Link>
         )}
 
         {/* Complete Session Action for Accepted Sessions */}

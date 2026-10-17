@@ -169,17 +169,28 @@ def get_tutor_slots(
     """
     Retrieve all slots for a specific tutor with optional status and date filters.
     """
-    query: Dict[str, Any] = {"tutor_id": str(tutor_id)}
-    if status:
-        query["status"] = status.strip().upper()
-    if date:
-        query["date"] = date.strip()
-
+    tutor_ids = [str(tutor_id)]
     tutor = None
     try:
         tutor = mongo.db.users.find_one({"_id": ObjectId(tutor_id)})
     except Exception:
         pass
+
+    if not tutor:
+        try:
+            prof = mongo.db.tutor_profiles.find_one({"_id": ObjectId(tutor_id)})
+            if prof and prof.get("user_id"):
+                tutor_ids.append(str(prof["user_id"]))
+                tutor = mongo.db.users.find_one({"_id": ObjectId(prof["user_id"])})
+        except Exception:
+            pass
+
+    query: Dict[str, Any] = {"tutor_id": {"$in": tutor_ids}}
+    if status:
+        query["status"] = status.strip().upper()
+    if date:
+        query["date"] = date.strip()
+
     tutor_name = tutor.get("name", "") if tutor else ""
 
     cursor = mongo.db.availability.find(query).sort([("date", 1), ("start_time", 1)])
