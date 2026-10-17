@@ -132,12 +132,35 @@ def create_app(config_overrides: dict | None = None) -> Flask:
     app.register_blueprint(portfolio_bp, url_prefix="/api/portfolio")
 
     # ------------------------------------------------------------------ #
+    #  Frontend Static Serving (Single-origin production hosting)         #
+    # ------------------------------------------------------------------ #
+    dist_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist"))
+    if os.path.isdir(dist_dir):
+        from flask import send_from_directory
+
+        @app.route("/", defaults={"path": ""})
+        @app.route("/<path:path>")
+        def serve_frontend(path):
+            if path.startswith("api/") or path == "api":
+                from app.utils.responses import error_response
+                return error_response(message="Resource not found.", status_code=404)
+            if path and os.path.exists(os.path.join(dist_dir, path)):
+                return send_from_directory(dist_dir, path)
+            return send_from_directory(dist_dir, "index.html")
+
+    # ------------------------------------------------------------------ #
     #  Global Error Handlers                                               #
     # ------------------------------------------------------------------ #
     from app.utils.responses import error_response
 
     @app.errorhandler(404)
     def handle_404(e):
+        from flask import request
+        if request.path.startswith("/api"):
+            return error_response(message="Resource not found.", status_code=404)
+        if os.path.isdir(dist_dir):
+            from flask import send_from_directory
+            return send_from_directory(dist_dir, "index.html")
         return error_response(message="Resource not found.", status_code=404)
 
     @app.errorhandler(405)

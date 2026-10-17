@@ -1,0 +1,29 @@
+services:
+  # ---------------------------------------------------------------------------
+  # PeerConnect Full-Stack Web Service (Flask + Gunicorn + Compiled React UI)
+  # ---------------------------------------------------------------------------
+  - type: web
+    name: peerconnect-app
+    runtime: python
+    region: oregon
+    plan: free
+    branch: main
+    buildCommand: |
+      cd frontend && npm install && npm run build && cd ../backend && pip install -r requirements.txt
+    startCommand: cd backend && gunicorn --workers 4 --bind 0.0.0.0:$PORT run:app
+    healthCheckPath: /api/health
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: FLASK_DEBUG
+        value: "0"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: FRONTEND_ORIGIN
+        value: "*"
+      - key: MONGO_URI
+        sync: false # Set to your MongoDB Atlas connection string in Render Dashboard
+      - key: MONGO_DB_NAME
+        value: peerconnect
