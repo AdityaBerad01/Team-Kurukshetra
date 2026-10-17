@@ -94,3 +94,33 @@ def cancel_request(request_id: str):
         return error_response(message=err_msg, status_code=status_code)
 
     return success_response(data=req, message="Session request cancelled.")
+
+
+@requests_bp.route("/<request_id>/complete", methods=["PATCH"])
+@jwt_required()
+def complete_session_request(request_id: str):
+    """
+    Mark an accepted session as completed (accessible to student or tutor).
+    """
+    user_id = get_jwt_identity()
+
+    req, err_msg, status_code = session_request_service.complete_request(user_id, request_id)
+    if err_msg:
+        return error_response(message=err_msg, status_code=status_code)
+
+    return success_response(data=req, message="Session marked as completed.")
+
+
+@requests_bp.route("/<request_id>", methods=["GET"])
+@jwt_required()
+def get_session_request_details(request_id: str):
+    """
+    Get detailed information about a single session request for participants.
+    """
+    user_id = get_jwt_identity()
+
+    req, err_msg, status_code = session_request_service.get_request_by_id(user_id, request_id)
+    if err_msg:
+        return error_response(message=err_msg, status_code=status_code)
+
+    return success_response(data=req, message="Session request details retrieved.")

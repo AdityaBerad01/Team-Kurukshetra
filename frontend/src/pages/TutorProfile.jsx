@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { fetchTutorById } from '../api/tutors'
 import { fetchTutorSlots } from '../api/slots'
 import { createSessionRequest } from '../api/requests'
+import { fetchTutorReviews } from '../api/reviews'
 import { useAuth } from '../context/AuthContext'
 import Avatar from '../components/ui/Avatar'
 import StarRating from '../components/ui/StarRating'
@@ -22,6 +23,9 @@ const TutorProfile = () => {
   // Real availability slots
   const [availableSlots, setAvailableSlots] = useState([])
   const [slotsLoading, setSlotsLoading]     = useState(false)
+
+  // Real reviews data
+  const [reviewData, setReviewData] = useState({ reviews: [], average_rating: 0, total_reviews: 0, breakdown: {} })
 
   // Booking Modal State
   const [bookModal, setBookModal]     = useState(false)
@@ -58,6 +62,15 @@ const TutorProfile = () => {
           .finally(() => {
             if (isMounted) setSlotsLoading(false)
           })
+
+        // Load real tutor reviews & rating statistics
+        fetchTutorReviews(tutorUserId)
+          .then((revs) => {
+            if (isMounted && revs) {
+              setReviewData(revs)
+            }
+          })
+          .catch((err) => console.error('Failed to load reviews:', err))
 
         if (data.subjects && data.subjects.length > 0) {
           setBookSubject(data.subjects[0])
@@ -146,6 +159,8 @@ const TutorProfile = () => {
     reviews = [],
   } = tutor
 
+  const effectiveRating = reviewData.total_reviews > 0 ? reviewData.average_rating : (rating || 0)
+  const effectiveReviewCount = reviewData.total_reviews > 0 ? reviewData.total_reviews : reviewCount
   const displayBio = introduction || bio || 'Dedicated peer tutor offering coursework assistance and problem solving.'
   const isSelf = user?.id && (user.id === tutor.user_id || user.id === tutor.id)
 
@@ -181,7 +196,7 @@ const TutorProfile = () => {
               {university} {department ? `· ${department}` : ''} {year_of_study ? `(${year_of_study})` : ''}
             </p>
             <div className="flex justify-center mt-3.5">
-              <StarRating rating={rating} reviewCount={reviewCount} size="md" />
+              <StarRating rating={effectiveRating} reviewCount={effectiveReviewCount} size="md" />
             </div>
 
             <div className="border-t border-slate-100 mt-6 pt-5 space-y-3.5 text-xs sm:text-sm text-left font-medium">
@@ -305,27 +320,56 @@ const TutorProfile = () => {
           {/* Reviews */}
           <div className="card bg-white/95 border-slate-200/80">
             <div className="flex items-center justify-between mb-5 pb-3 border-b border-slate-100">
-              <h2 className="font-bold text-slate-900 text-lg tracking-tight">
-                Peer Reviews ({reviewCount})
-              </h2>
-              <StarRating rating={rating} size="md" />
+              <div>
+                <h2 className="font-bold text-slate-900 text-lg tracking-tight">
+                  Peer Reviews ({effectiveReviewCount})
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5">Verified feedback from student mentorship sessions</p>
+              </div>
+              <StarRating rating={effectiveRating} size="md" />
             </div>
-            {reviews.length === 0 ? (
-              <p className="text-sm text-slate-400 italic">No reviews recorded yet for this mentor.</p>
+
+            {/* Rating breakdown bar if reviews exist */}
+            {reviewData.total_reviews > 0 && reviewData.breakdown && (
+              <div className="mb-6 p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-1.5">
+                {[5, 4, 3, 2, 1].map((stars) => {
+                  const count = reviewData.breakdown[stars] || 0
+                  const pct = Math.round((count / reviewData.total_reviews) * 100)
+                  return (
+                    <div key={stars} className="flex items-center gap-2.5 text-xs">
+                      <span className="w-12 text-slate-500 font-semibold">{stars} star{stars > 1 ? 's' : ''}</span>
+                      <div className="flex-1 h-2 rounded-full bg-slate-200/80 overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-amber-400 to-amber-500 rounded-full transition-all duration-300"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <span className="w-8 text-right font-medium text-slate-400 text-[11px]">{count}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {/* Reviews list */}
+            {effectiveReviewCount === 0 ? (
+              <p className="text-sm text-slate-400 italic py-4 text-center">No reviews recorded yet for this mentor.</p>
             ) : (
               <div className="space-y-4">
-                {reviews.map((r) => (
+                {(reviewData.total_reviews > 0 ? reviewData.reviews : reviews).map((r) => (
                   <div key={r.id} className="border-b border-slate-100/90 pb-4 last:border-0 last:pb-0">
                     <div className="flex items-center justify-between mb-1.5">
-                      <span className="font-bold text-sm text-slate-900">{r.author}</span>
+                      <span className="font-bold text-sm text-slate-900">{r.student_name || r.author}</span>
                       <div className="flex items-center gap-1">
                         {Array.from({ length: r.rating }).map((_, i) => (
                           <span key={i} className="text-accent-gold text-xs">★</span>
                         ))}
-                        <span className="text-[11px] font-medium text-slate-400 ml-1.5">{r.date}</span>
+                        <span className="text-[11px] font-medium text-slate-400 ml-1.5">
+                          {r.created_at ? r.created_at.split('T')[0] : r.date}
+                        </span>
                       </div>
                     </div>
-                    <p className="text-sm text-slate-600 leading-relaxed font-normal">{r.text}</p>
+                    <p className="text-sm text-slate-600 leading-relaxed font-normal">{r.comment || r.text}</p>
                   </div>
                 ))}
               </div>

@@ -53,5 +53,9 @@ def create_app(config_overrides: dict | None = None) -> Flask:
     app.register_blueprint(slots_bp, url_prefix="/api/slots")
     from app.routes.requests import requests_bp
     app.register_blueprint(requests_bp, url_prefix="/api/requests")
+    from app.routes.reviews import reviews_bp
+    app.register_blueprint(reviews_bp, url_prefix="/api")
+    from app.routes.dashboard import dashboard_bp
+    app.register_blueprint(dashboard_bp, url_prefix="/api/dashboard")
 
     return app

@@ -24,6 +24,7 @@ def app():
             mongo.db.tutor_profiles.delete_many({})
             mongo.db.availability.delete_many({})
             mongo.db.session_requests.delete_many({})
+            mongo.db.reviews.delete_many({})
         except Exception:
             pass
 
@@ -36,6 +37,7 @@ def app():
             mongo.db.tutor_profiles.delete_many({})
             mongo.db.availability.delete_many({})
             mongo.db.session_requests.delete_many({})
+            mongo.db.reviews.delete_many({})
         except Exception:
             pass
 

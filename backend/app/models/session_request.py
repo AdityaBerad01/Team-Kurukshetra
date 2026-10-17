@@ -4,7 +4,7 @@ Session request model schema and serialization helpers for PeerConnect.
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
-VALID_REQUEST_STATUSES = {"PENDING", "ACCEPTED", "DECLINED", "CANCELLED"}
+VALID_REQUEST_STATUSES = {"PENDING", "ACCEPTED", "DECLINED", "CANCELLED", "COMPLETED"}
 
 
 def new_session_request(
@@ -36,10 +36,11 @@ def to_safe_request(
     student_name: str = "",
     tutor_name: str = "",
     slot_info: Optional[Dict[str, Any]] = None,
+    review_info: Optional[Dict[str, Any]] = None,
 ) -> Optional[Dict[str, Any]]:
     """
     Serialize a session request document for API responses,
-    optionally enriched with student/tutor names and slot timing.
+    optionally enriched with student/tutor names, slot timing, and review info.
     """
     if not req_doc:
         return None
@@ -48,8 +49,10 @@ def to_safe_request(
 
     created_at = req_doc.get("created_at")
     updated_at = req_doc.get("updated_at")
+    completed_at = req_doc.get("completed_at")
     created_str = created_at.isoformat() if isinstance(created_at, datetime) else str(created_at or "")
     updated_str = updated_at.isoformat() if isinstance(updated_at, datetime) else str(updated_at or "")
+    completed_str = completed_at.isoformat() if isinstance(completed_at, datetime) else (str(completed_at) if completed_at else None)
 
     slot = slot_info or {}
     mode_raw = slot.get("teaching_mode", "ONLINE")
@@ -69,7 +72,7 @@ def to_safe_request(
 
     status = req_doc.get("status", "PENDING").upper()
     status_lower = status.lower()
-    # Map for UI card compatibility: accepted -> confirmed, declined -> rejected
+    # Map for UI card compatibility: accepted -> confirmed, declined -> rejected, completed -> completed
     ui_status = "confirmed" if status == "ACCEPTED" else ("rejected" if status == "DECLINED" else status_lower)
 
     return {
@@ -96,4 +99,7 @@ def to_safe_request(
         "teaching_mode": mode_raw,
         "created_at": created_str,
         "updated_at": updated_str,
+        "completed_at": completed_str,
+        "is_reviewed": bool(review_info),
+        "review": review_info,
     }

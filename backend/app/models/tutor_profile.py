@@ -27,7 +27,7 @@ def new_tutor_profile(
         "subjects": [s.strip() for s in subjects if s.strip()],
         "introduction": introduction.strip() if introduction else "",
         "department": department.strip() if department else "",
-        "year_of_study": year_of_study.strip() if year_of_study else "",
+        "year_of_study": str(year_of_study).strip() if year_of_study is not None else "",
         "teaching_modes": [m.strip().upper() for m in (teaching_modes or []) if m.strip()],
         "hourly_rate": max(0, int(hourly_rate or 0)),
         "availability": availability or ["Monday", "Wednesday", "Friday"],

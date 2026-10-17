@@ -1,42 +1,42 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { fetchMyRequests, cancelRequest } from '../api/requests'
-import { fetchTutors } from '../api/tutors'
+import { fetchStudentDashboard } from '../api/dashboard'
+import { cancelRequest } from '../api/requests'
 import SessionRequestCard from '../components/SessionRequestCard'
+import SessionDetailsModal from '../components/SessionDetailsModal'
+import ReviewModal from '../components/ReviewModal'
 import EmptyState from '../components/ui/EmptyState'
-import Badge from '../components/ui/Badge'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 
 const GREETING_TIME = new Date().getHours() < 12 ? 'morning' : 'afternoon'
 
 const StudentDashboard = () => {
   const { user } = useAuth()
-  const [requests, setRequests] = useState([])
-  const [totalTutors, setTotalTutors] = useState(0)
+  const [dashboardData, setDashboardData] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [actionLoadingId, setActionLoadingId] = useState(null)
   const [error, setError] = useState(null)
   const [successMsg, setSuccessMsg] = useState(null)
   const [refreshKey, setRefreshKey] = useState(0)
 
+  // Modals state
+  const [detailsSession, setDetailsSession] = useState(null)
+  const [reviewSession, setReviewSession] = useState(null)
+
   useEffect(() => {
     let isMounted = true
-    Promise.all([
-      fetchMyRequests().catch(() => []),
-      fetchTutors({ per_page: 1 }).catch(() => ({ total: 0 })),
-    ])
-      .then(([reqData, tutorsData]) => {
+    fetchStudentDashboard()
+      .then((data) => {
         if (isMounted) {
-          setRequests(reqData || [])
-          setTotalTutors(tutorsData?.total || 0)
+          setDashboardData(data)
           setError(null)
           setIsLoading(false)
         }
       })
       .catch((err) => {
         if (isMounted) {
-          setError(err?.response?.data?.message || 'Failed to load dashboard data.')
+          setError(err?.response?.data?.message || 'Failed to load student dashboard.')
           setIsLoading(false)
         }
       })
@@ -65,17 +65,22 @@ const StudentDashboard = () => {
     }
   }
 
-  const upcoming = requests.filter((r) => {
-    const s = (r.status || '').toLowerCase()
-    return s === 'accepted' || s === 'confirmed'
-  })
-  const pending = requests.filter((r) => (r.status || '').toLowerCase() === 'pending')
+  const stats = dashboardData?.stats || {
+    total_requests: 0,
+    pending_requests: 0,
+    upcoming_sessions: 0,
+    completed_sessions: 0,
+    total_tutors: 0,
+  }
+
+  const recentActivity = dashboardData?.recent_activity || []
+  const unreviewedSessions = dashboardData?.unreviewed_sessions || []
 
   const statCards = [
-    { label: 'Upcoming Sessions', value: upcoming.length, icon: '📅', color: 'text-emerald-700 bg-emerald-50 border border-emerald-200/70' },
-    { label: 'Pending Requests',  value: pending.length,  icon: '⏳', color: 'text-amber-700 bg-amber-50 border border-amber-200/70' },
-    { label: 'Total Inquiries',   value: requests.length, icon: '📋', color: 'text-sky-700 bg-sky-50 border border-sky-200/70' },
-    { label: 'Tutors Available',  value: totalTutors,     icon: '👨‍🏫', color: 'text-primary-700 bg-primary-50 border border-primary-200/70' },
+    { label: 'Upcoming Sessions', value: stats.upcoming_sessions, icon: '📅', color: 'text-emerald-700 bg-emerald-50 border border-emerald-200/70' },
+    { label: 'Pending Requests',  value: stats.pending_requests,  icon: '⏳', color: 'text-amber-700 bg-amber-50 border border-amber-200/70' },
+    { label: 'Sessions Completed',value: stats.completed_sessions,icon: '✅', color: 'text-sky-700 bg-sky-50 border border-sky-200/70' },
+    { label: 'Total Inquiries',   value: stats.total_requests,    icon: '📋', color: 'text-primary-700 bg-primary-50 border border-primary-200/70' },
   ]
 
   return (
@@ -125,6 +130,26 @@ const StudentDashboard = () => {
         )}
       </div>
 
+      {/* Unreviewed Completed Sessions Banner */}
+      {unreviewedSessions.length > 0 && (
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-300/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">⭐</span>
+            <div>
+              <p className="text-xs font-bold text-amber-950">You have {unreviewedSessions.length} completed session{unreviewedSessions.length > 1 ? 's' : ''} ready to review!</p>
+              <p className="text-xs text-amber-800/90 mt-0.5">Help your peer mentors by rating your learning experience.</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setReviewSession(unreviewedSessions[0])}
+            className="px-4 py-1.5 rounded-xl text-xs font-bold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-all whitespace-nowrap self-start sm:self-auto"
+          >
+            Review Session →
+          </button>
+        </div>
+      )}
+
       {/* Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map(({ label, value, icon, color }) => (
@@ -138,62 +163,36 @@ const StudentDashboard = () => {
         ))}
       </div>
 
-      {/* Upcoming Sessions */}
+      {/* Recent Session Activity */}
       <section className="card bg-white/95">
         <div className="flex items-center justify-between mb-5 pb-3 border-b border-slate-100">
           <div>
-            <h2 className="text-lg font-bold text-slate-900 tracking-tight">Upcoming Sessions</h2>
-            <p className="text-xs text-slate-400">Confirmed sessions with your peer mentors</p>
+            <h2 className="text-lg font-bold text-slate-900 tracking-tight">Recent Tutoring Activity</h2>
+            <p className="text-xs text-slate-400">Your latest appointments, inquiries, and reviews</p>
           </div>
           <Link to="/my-requests" className="text-xs font-bold text-primary-600 hover:text-primary-700 hover:underline">
-            View All Requests →
+            View All Requests ({stats.total_requests}) →
           </Link>
         </div>
         {isLoading ? (
           <LoadingSpinner size="sm" />
-        ) : upcoming.length === 0 ? (
+        ) : recentActivity.length === 0 ? (
           <EmptyState
             icon="📅"
-            title="No upcoming sessions"
-            description="Explore our verified peer tutors and schedule your first session."
+            title="No tutoring activity yet"
+            description="Explore our verified peer mentors and schedule your first session."
             action={<Link to="/tutors" className="btn-primary">Find a Tutor</Link>}
           />
         ) : (
           <div className="space-y-4">
-            {upcoming.map((r) => (
+            {recentActivity.map((r) => (
               <SessionRequestCard
                 key={r.id}
                 request={r}
                 viewAs="student"
                 onCancel={handleCancel}
-                isActionLoading={actionLoadingId === r.id}
-              />
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* Pending Requests */}
-      <section className="card bg-white/95">
-        <div className="flex items-center justify-between mb-5 pb-3 border-b border-slate-100">
-          <div>
-            <h2 className="text-lg font-bold text-slate-900 tracking-tight">Pending Tutor Requests</h2>
-            <p className="text-xs text-slate-400">Awaiting acceptance from your selected tutor</p>
-          </div>
-          <Badge status="pending">{pending.length} Pending</Badge>
-        </div>
-        {isLoading ? (
-          <LoadingSpinner size="sm" />
-        ) : pending.length === 0 ? (
-          <EmptyState icon="⏳" title="No pending requests" description="When you request a tutor, it will appear here." />
-        ) : (
-          <div className="space-y-4">
-            {pending.map((r) => (
-              <SessionRequestCard
-                key={r.id}
-                request={r}
-                viewAs="student"
-                onCancel={handleCancel}
+                onReview={(s) => setReviewSession(s)}
+                onViewDetails={(s) => setDetailsSession(s)}
                 isActionLoading={actionLoadingId === r.id}
               />
             ))}
@@ -216,7 +215,7 @@ const StudentDashboard = () => {
             <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-xl text-amber-700">📋</div>
             <div>
               <p className="font-bold text-sm text-slate-900">My Requests</p>
-              <p className="text-xs text-slate-400">History and cancellations</p>
+              <p className="text-xs text-slate-400">History, reviews &amp; status</p>
             </div>
           </Link>
           <Link to="/profile" className="card hover:shadow-card-hover hover:border-primary-300 transition-all flex items-center gap-3.5 p-4 bg-white/95">
@@ -228,6 +227,28 @@ const StudentDashboard = () => {
           </Link>
         </div>
       </section>
+
+      {/* Review Modal */}
+      {reviewSession && (
+        <ReviewModal
+          isOpen={Boolean(reviewSession)}
+          onClose={() => setReviewSession(null)}
+          session={reviewSession}
+          onSuccess={() => {
+            setSuccessMsg('Review submitted successfully! Thank you for supporting the tutor community.')
+            setRefreshKey((k) => k + 1)
+          }}
+        />
+      )}
+
+      {/* Session Details Modal */}
+      {detailsSession && (
+        <SessionDetailsModal
+          isOpen={Boolean(detailsSession)}
+          onClose={() => setDetailsSession(null)}
+          session={detailsSession}
+        />
+      )}
     </div>
   )
 }

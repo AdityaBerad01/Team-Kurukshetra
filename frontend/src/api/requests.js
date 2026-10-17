@@ -57,3 +57,23 @@ export const cancelRequest = async (requestId) => {
   const response = await api.patch(`/requests/${requestId}/cancel`)
   return response.data.data
 }
+
+/**
+ * Mark an accepted tutoring session as completed.
+ * @param {string} requestId
+ * @returns {Promise<Object>} completed request
+ */
+export const completeRequest = async (requestId) => {
+  const response = await api.patch(`/requests/${requestId}/complete`)
+  return response.data.data
+}
+
+/**
+ * Retrieve detailed information for a single session request.
+ * @param {string} requestId
+ * @returns {Promise<Object>} session request details
+ */
+export const fetchRequestById = async (requestId) => {
+  const response = await api.get(`/requests/${requestId}`)
+  return response.data.data
+}

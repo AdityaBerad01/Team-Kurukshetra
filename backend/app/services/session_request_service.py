@@ -266,8 +266,76 @@ def cancel_request(user_id: str, request_id: str) -> Tuple[Optional[Dict], Optio
     return enriched[0] if enriched else None, None, 200
 
 
+def complete_request(user_id: str, request_id: str) -> Tuple[Optional[Dict], Optional[str], int]:
+    """
+    Mark an ACCEPTED session request as COMPLETED.
+    Can be called by either the tutor or the student of the session.
+    """
+    try:
+        req_oid = ObjectId(request_id)
+    except Exception:
+        return None, "Invalid request ID format.", 400
+
+    req = mongo.db.session_requests.find_one({"_id": req_oid})
+    if not req:
+        return None, "Session request not found.", 404
+
+    # Authorization: must be either student or tutor
+    user_str = str(user_id)
+    if str(req.get("tutor_id", "")) != user_str and str(req.get("student_id", "")) != user_str:
+        return None, "You are not authorized to complete this session.", 403
+
+    current_status = req.get("status")
+    if current_status == "COMPLETED":
+        return None, "This session is already marked as completed.", 400
+    if current_status != "ACCEPTED":
+        return None, f"Only accepted sessions can be completed (current status: '{current_status}').", 400
+
+    now = datetime.now(timezone.utc)
+    mongo.db.session_requests.update_one(
+        {"_id": req_oid},
+        {"$set": {"status": "COMPLETED", "completed_at": now, "updated_at": now}},
+    )
+
+    # Also update availability slot status to COMPLETED if slot exists
+    slot_id_str = str(req.get("slot_id", ""))
+    if slot_id_str:
+        try:
+            mongo.db.availability.update_one(
+                {"_id": ObjectId(slot_id_str)},
+                {"$set": {"status": "COMPLETED", "updated_at": now}},
+            )
+        except Exception:
+            pass
+
+    updated_req = mongo.db.session_requests.find_one({"_id": req_oid})
+    enriched = _enrich_requests([updated_req])
+    return enriched[0] if enriched else None, None, 200
+
+
+def get_request_by_id(user_id: str, request_id: str) -> Tuple[Optional[Dict], Optional[str], int]:
+    """
+    Retrieve single session request details for authorized participants.
+    """
+    try:
+        req_oid = ObjectId(request_id)
+    except Exception:
+        return None, "Invalid request ID format.", 400
+
+    req = mongo.db.session_requests.find_one({"_id": req_oid})
+    if not req:
+        return None, "Session request not found.", 404
+
+    user_str = str(user_id)
+    if str(req.get("tutor_id", "")) != user_str and str(req.get("student_id", "")) != user_str:
+        return None, "You are not authorized to view this session request.", 403
+
+    enriched = _enrich_requests([req])
+    return enriched[0] if enriched else None, None, 200
+
+
 def _enrich_requests(requests: List[Dict]) -> List[Dict]:
-    """Helper to batch-load slot, tutor, and student details for requests."""
+    """Helper to batch-load slot, tutor, student, and review details for requests."""
     if not requests:
         return []
 
@@ -277,6 +345,7 @@ def _enrich_requests(requests: List[Dict]) -> List[Dict]:
         {r.get("student_id") for r in requests if r.get("student_id")}
         | {r.get("tutor_id") for r in requests if r.get("tutor_id")}
     )
+    req_ids = [str(r.get("_id", "")) for r in requests if r.get("_id")]
 
     slot_oids = []
     for sid in slot_ids:
@@ -302,12 +371,26 @@ def _enrich_requests(requests: List[Dict]) -> List[Dict]:
         users = mongo.db.users.find({"_id": {"$in": user_oids}}, {"name": 1})
         users_map = {str(u["_id"]): u.get("name", "") for u in users}
 
+    reviews_map = {}
+    if req_ids:
+        reviews = mongo.db.reviews.find({"request_id": {"$in": req_ids}})
+        for rev in reviews:
+            rev_created = rev.get("created_at")
+            rev_created_str = rev_created.isoformat() if isinstance(rev_created, datetime) else str(rev_created or "")
+            reviews_map[str(rev.get("request_id", ""))] = {
+                "id": str(rev.get("_id", "")),
+                "rating": rev.get("rating"),
+                "comment": rev.get("comment"),
+                "created_at": rev_created_str,
+            }
+
     results = []
     for r in requests:
         slot = slots_map.get(str(r.get("slot_id", "")))
         student_name = users_map.get(str(r.get("student_id", "")), "")
         tutor_name = users_map.get(str(r.get("tutor_id", "")), "")
-        results.append(to_safe_request(r, student_name, tutor_name, slot))
+        review_info = reviews_map.get(str(r.get("_id", "")))
+        results.append(to_safe_request(r, student_name, tutor_name, slot, review_info))
 
     return results
 

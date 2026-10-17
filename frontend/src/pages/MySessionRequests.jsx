@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { fetchMyRequests, cancelRequest } from '../api/requests'
+import { fetchMyRequests, cancelRequest, completeRequest } from '../api/requests'
 import SessionRequestCard from '../components/SessionRequestCard'
+import SessionDetailsModal from '../components/SessionDetailsModal'
+import ReviewModal from '../components/ReviewModal'
 import EmptyState from '../components/ui/EmptyState'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 
@@ -10,6 +12,7 @@ const FILTERS = [
   { key: 'all', label: 'All Requests' },
   { key: 'pending', label: 'Pending' },
   { key: 'accepted', label: 'Accepted' },
+  { key: 'completed', label: 'Completed' },
   { key: 'declined', label: 'Declined' },
   { key: 'cancelled', label: 'Cancelled' },
 ]
@@ -23,6 +26,10 @@ const MySessionRequests = () => {
   const [successMsg, setSuccessMsg] = useState(null)
   const [filter, setFilter] = useState('all')
   const [refreshKey, setRefreshKey] = useState(0)
+
+  // Modals state
+  const [detailsSession, setDetailsSession] = useState(null)
+  const [reviewSession, setReviewSession] = useState(null)
 
   useEffect(() => {
     let isMounted = true
@@ -64,6 +71,25 @@ const MySessionRequests = () => {
     }
   }
 
+  const handleComplete = async (id) => {
+    if (!window.confirm('Mark this tutoring session as completed?')) {
+      return
+    }
+
+    setActionLoadingId(id)
+    setError(null)
+    setSuccessMsg(null)
+    try {
+      await completeRequest(id)
+      setSuccessMsg('Session marked as completed! You can now write a review for your tutor.')
+      setRefreshKey((k) => k + 1)
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Failed to complete session.')
+    } finally {
+      setActionLoadingId(null)
+    }
+  }
+
   const matchesFilter = (r, f) => {
     if (f === 'all') return true
     const s = (r.status || '').toLowerCase()
@@ -89,12 +115,12 @@ const MySessionRequests = () => {
         <div>
           <div className="flex items-center gap-2 text-xs font-bold text-primary-700 uppercase tracking-wider mb-1">
             <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            Booking History
+            Booking History &amp; Reviews
           </div>
           <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
             {user?.name ? `${user.name.split(' ')[0]}'s Tutoring Requests` : 'My Session Requests'}
           </h1>
-          <p className="text-slate-500 text-sm mt-0.5">Track and manage all your academic tutoring appointments.</p>
+          <p className="text-slate-500 text-sm mt-0.5">Track, complete, and review all your academic tutoring appointments.</p>
         </div>
         <div className="flex items-center gap-2.5">
           <button
@@ -178,10 +204,35 @@ const MySessionRequests = () => {
               request={r}
               viewAs="student"
               onCancel={handleCancel}
+              onComplete={handleComplete}
+              onReview={(s) => setReviewSession(s)}
+              onViewDetails={(s) => setDetailsSession(s)}
               isActionLoading={actionLoadingId === r.id}
             />
           ))}
         </div>
+      )}
+
+      {/* Review Modal */}
+      {reviewSession && (
+        <ReviewModal
+          isOpen={Boolean(reviewSession)}
+          onClose={() => setReviewSession(null)}
+          session={reviewSession}
+          onSuccess={() => {
+            setSuccessMsg('Review submitted successfully! Thank you for rating your tutor.')
+            setRefreshKey((k) => k + 1)
+          }}
+        />
+      )}
+
+      {/* Session Details Modal */}
+      {detailsSession && (
+        <SessionDetailsModal
+          isOpen={Boolean(detailsSession)}
+          onClose={() => setDetailsSession(null)}
+          session={detailsSession}
+        />
       )}
     </div>
   )
