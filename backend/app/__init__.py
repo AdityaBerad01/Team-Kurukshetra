@@ -99,10 +99,13 @@ def create_app(config_overrides: dict | None = None) -> Flask:
 
     jwt.init_app(app)
 
-    # MongoDB via PyMongo
-    mongo.init_app(app)
+    # MongoDB via PyMongo – guard against missing/bad URI so startup never hangs
+    try:
+        mongo.init_app(app)
+    except Exception as exc:  # pragma: no cover
+        app.logger.error("MongoDB init failed (MONGO_URI may not be set): %s", exc)
 
-    # Initialize collection indexes
+    # Initialize collection indexes (runs in background thread – safe to fail)
     init_db_indexes(app)
 
     # ------------------------------------------------------------------ #
