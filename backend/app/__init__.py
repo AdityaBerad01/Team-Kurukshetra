@@ -14,33 +14,38 @@ from app.routes.health import health_bp
 
 
 def init_db_indexes(app: Flask):
-    """Ensure essential collection indexes are present on startup."""
-    with app.app_context():
-        try:
-            mongo.db.users.create_index("email", unique=True)
-            mongo.db.tutor_profiles.create_index("user_id", unique=True)
-            mongo.db.tutor_profiles.create_index("subjects")
-            mongo.db.tutor_profiles.create_index("teaching_modes")
-            mongo.db.availability.create_index([("tutor_id", 1), ("date", 1), ("status", 1)])
-            mongo.db.availability.create_index([("status", 1), ("date", 1)])
-            mongo.db.session_requests.create_index([("student_id", 1), ("created_at", -1)])
-            mongo.db.session_requests.create_index([("tutor_id", 1), ("status", 1)])
-            mongo.db.session_requests.create_index([("slot_id", 1), ("status", 1)])
-            mongo.db.reviews.create_index([("request_id", 1)], unique=True)
-            mongo.db.reviews.create_index([("tutor_id", 1), ("created_at", -1)])
-            mongo.db.reviews.create_index([("student_id", 1), ("created_at", -1)])
-            mongo.db.credit_transactions.create_index([("user_id", 1), ("created_at", -1)])
-            mongo.db.credit_transactions.create_index([("related_session_id", 1), ("type", 1)])
-            mongo.db.assessments.create_index([("student_id", 1), ("status", 1)])
-            mongo.db.assessments.create_index([("tutor_id", 1), ("created_at", -1)])
-            mongo.db.resources.create_index([("subject", 1), ("upvotes", -1)])
-            mongo.db.resources.create_index([("author_id", 1)])
-            mongo.db.focus_rooms.create_index([("status", 1), ("expires_at", 1)])
-            mongo.db.focus_sprints.create_index([("user_id", 1), ("completed_at", -1)])
-            mongo.db.session_plans.create_index([("request_id", 1)], unique=True)
-            mongo.db.portfolios.create_index([("user_id", 1)], unique=True)
-        except Exception as e:
-            app.logger.warning("MongoDB index initialization note: %s", e)
+    """Ensure essential collection indexes are present on startup asynchronously."""
+    import threading
+
+    def _create_indexes():
+        with app.app_context():
+            try:
+                mongo.db.users.create_index("email", unique=True)
+                mongo.db.tutor_profiles.create_index("user_id", unique=True)
+                mongo.db.tutor_profiles.create_index("subjects")
+                mongo.db.tutor_profiles.create_index("teaching_modes")
+                mongo.db.availability.create_index([("tutor_id", 1), ("date", 1), ("status", 1)])
+                mongo.db.availability.create_index([("status", 1), ("date", 1)])
+                mongo.db.session_requests.create_index([("student_id", 1), ("created_at", -1)])
+                mongo.db.session_requests.create_index([("tutor_id", 1), ("status", 1)])
+                mongo.db.session_requests.create_index([("slot_id", 1), ("status", 1)])
+                mongo.db.reviews.create_index([("request_id", 1)], unique=True)
+                mongo.db.reviews.create_index([("tutor_id", 1), ("created_at", -1)])
+                mongo.db.reviews.create_index([("student_id", 1), ("created_at", -1)])
+                mongo.db.credit_transactions.create_index([("user_id", 1), ("created_at", -1)])
+                mongo.db.credit_transactions.create_index([("related_session_id", 1), ("type", 1)])
+                mongo.db.assessments.create_index([("student_id", 1), ("status", 1)])
+                mongo.db.assessments.create_index([("tutor_id", 1), ("created_at", -1)])
+                mongo.db.resources.create_index([("subject", 1), ("upvotes", -1)])
+                mongo.db.resources.create_index([("author_id", 1)])
+                mongo.db.focus_rooms.create_index([("status", 1), ("expires_at", 1)])
+                mongo.db.focus_sprints.create_index([("user_id", 1), ("completed_at", -1)])
+                mongo.db.session_plans.create_index([("request_id", 1)], unique=True)
+                mongo.db.portfolios.create_index([("user_id", 1)], unique=True)
+            except Exception as e:
+                app.logger.warning("MongoDB index initialization note: %s", e)
+
+    threading.Thread(target=_create_indexes, daemon=True).start()
 
 
 def create_app(config_overrides: dict | None = None) -> Flask:
